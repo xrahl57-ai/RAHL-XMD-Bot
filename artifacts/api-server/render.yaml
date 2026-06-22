@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: rahl-xmd
+    env: node
+    buildCommand: npm install
+    startCommand: node index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_ID
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: BOT_NAME
+        value: RAHL XMD
+      - key: OWNER_NAME
+        value: LORD RAHL
+      - key: OWNER_NUMBER
+        value: "254112399557"
+      - key: PREFIX
+        value: "."
+      - key: PORT
+        value: "3000"
