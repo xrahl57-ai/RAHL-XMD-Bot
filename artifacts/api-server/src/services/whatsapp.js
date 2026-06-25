@@ -1,3 +1,11 @@
+import makeWASocket, {
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  makeCacheableSignalKeyStore,
+  isJidBroadcast,
+} from '@whiskeysockets/baileys';
+import { Boom } from '@hapi/boom';
 import { mkdirSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -7,17 +15,32 @@ import { logger } from '../utils/logger.js';
 import { decodeSession } from '../utils/sessionLoader.js';
 import { config } from '../config/config.js';
 import { loadCommands } from '../handlers/commandHandler.js';
+import { handleMessage } from '../handlers/messageHandler.js';
+import { handleConnection } from '../events/connection.js';
+import { handleGroupUpdate } from '../events/groupUpdate.js';
+import { handleParticipantUpdate } from '../events/participantUpdate.js';
+import { handleCall } from '../events/callHandler.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SESSION_DIR = join(__dirname, '../../.session');
 
 let botSocket = null;
-let startTime = Date.now();
+const startTime = Date.now();
 let retryCount = 0;
 let botInfo = { connected: false, number: '', name: '' };
-let baileysAvailable = false;
 
 const msgRetryCache = new NodeCache();
+
+const silentLogger = {
+  fatal: (msg, ...args) => logger.error(`[Baileys FATAL] ${msg}`, ...args),
+  error: (msg, ...args) => logger.error(`[Baileys ERROR] ${msg}`, ...args),
+  warn: (msg, ...args) => logger.warn(`[Baileys WARN] ${msg}`, ...args),
+  info: () => {},
+  debug: () => {},
+  trace: () => {},
+  child: () => silentLogger,
+  level: 'silent',
+};
 
 export function getBotSocket() {
   return botSocket;
@@ -27,25 +50,21 @@ export function getBotInfo() {
   return { ...botInfo, uptime: Date.now() - startTime, startTime };
 }
 
-export function isBaileysAvailable() {
-  return baileysAvailable;
-}
-
 function restoreSessionFromBase64() {
   const sessionId = config.sessionId;
   if (!sessionId) return false;
 
   try {
     const sessionData = decodeSession(sessionId);
-    if (!sessionData) return false;
+    if (!sessionData) {
+      logger.error('Session decoding returned null — SESSION_ID may be corrupt.');
+      return false;
+    }
 
     mkdirSync(SESSION_DIR, { recursive: true });
 
     const creds = sessionData.creds || sessionData;
-    writeFileSync(
-      join(SESSION_DIR, 'creds.json'),
-      JSON.stringify(creds, null, 2),
-    );
+    writeFileSync(join(SESSION_DIR, 'creds.json'), JSON.stringify(creds, null, 2));
 
     if (sessionData.keys) {
       writeFileSync(
@@ -54,67 +73,43 @@ function restoreSessionFromBase64() {
       );
     }
 
-    logger.info('Session restored from BASE64 successfully.');
+    logger.info('Session restored from BASE64 to .session/ successfully.');
     return true;
   } catch (err) {
-    logger.error('Failed to restore session:', err.message);
+    logger.error('restoreSessionFromBase64 failed:', err);
+    console.error(chalk.red('✗ Session restore error:'), err);
     return false;
   }
 }
 
 export async function startWhatsApp() {
-  let baileys;
-  try {
-    baileys = await import('@whiskeysockets/baileys');
-    baileysAvailable = true;
-  } catch (err) {
-    logger.warn('Baileys not available in this environment. WhatsApp connection disabled.');
-    logger.warn('Deploy to Railway/Render/VPS to run the full bot with WhatsApp.');
-    console.log(chalk.yellow('⚠ Baileys not available — Deploy to Railway/Render/VPS for WhatsApp.'));
-    console.log(chalk.yellow('  Dashboard-only mode active on this platform.'));
-    return null;
-  }
-
-  const {
-    default: makeWASocket,
-    useMultiFileAuthState,
-    DisconnectReason,
-    fetchLatestBaileysVersion,
-    makeCacheableSignalKeyStore,
-    isJidBroadcast,
-  } = baileys;
-
-  const { Boom } = await import('@hapi/boom');
-
   mkdirSync(SESSION_DIR, { recursive: true });
 
   const sessionExists = existsSync(join(SESSION_DIR, 'creds.json'));
   if (!sessionExists) {
     const restored = restoreSessionFromBase64();
     if (!restored) {
-      logger.error('Could not restore session from SESSION_ID.');
-      return null;
+      const err = new Error('Could not restore session from SESSION_ID — creds.json missing after decode attempt.');
+      logger.error(err.message);
+      console.error(chalk.red('✗ Session restore failed:'), err.message);
+      throw err;
     }
   }
+
+  console.log(chalk.hex('#7B2FBE')('✓ Baileys Loaded'));
+  logger.info('Baileys loaded successfully.');
 
   const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
   const { version } = await fetchLatestBaileysVersion();
 
-  logger.info(`Using Baileys version: ${version.join('.')}`);
+  logger.info(`Baileys version: ${version.join('.')}`);
 
   const commands = await loadCommands();
   console.log(chalk.hex('#7B2FBE')(`✓ Commands Loaded (${commands.size} commands)`));
+  logger.info(`Commands loaded: ${commands.size}`);
 
-  const silentLogger = {
-    fatal: () => {},
-    warn: () => {},
-    error: (msg) => logger.error(msg),
-    info: () => {},
-    debug: () => {},
-    trace: () => {},
-    child: () => silentLogger,
-    level: 'silent',
-  };
+  console.log(chalk.hex('#7B2FBE')('✓ Connecting To WhatsApp...'));
+  logger.info('Attempting WhatsApp connection...');
 
   const sock = makeWASocket({
     version,
@@ -137,35 +132,37 @@ export async function startWhatsApp() {
 
   botSocket = sock;
 
-  const { handleMessage } = await import('../handlers/messageHandler.js');
-  const { handleConnection } = await import('../events/connection.js');
-  const { handleGroupUpdate } = await import('../events/groupUpdate.js');
-  const { handleParticipantUpdate } = await import('../events/participantUpdate.js');
-  const { handleCall } = await import('../events/callHandler.js');
-
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', async (update) => {
+    const { connection, lastDisconnect } = update;
+
     await handleConnection(sock, update, async () => {
       if (retryCount < config.reconnect.maxRetries) {
         retryCount++;
-        logger.warn(`Reconnecting... attempt ${retryCount}`);
+        const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
+        logger.warn(`Connection closed (reason: ${reason}). Reconnecting... attempt ${retryCount}`);
+        console.log(chalk.yellow(`⚠ Reconnecting (attempt ${retryCount}/${config.reconnect.maxRetries})...`));
         setTimeout(() => startWhatsApp(), config.reconnect.delayMs);
       } else {
-        logger.error('Max reconnect attempts reached.');
+        logger.error('Max reconnect attempts reached. Bot stopped reconnecting.');
+        console.error(chalk.red('✗ Max reconnect attempts reached.'));
       }
     });
 
-    if (update.connection === 'open') {
+    if (connection === 'open') {
       retryCount = 0;
       botInfo.connected = true;
       const number = sock.user?.id?.split(':')[0] || '';
       botInfo.number = number;
       botInfo.name = sock.user?.name || config.botName;
       console.log(chalk.hex('#7B2FBE')('✓ WhatsApp Connected'));
-      logger.info(`Connected as ${number}`);
-    } else if (update.connection === 'close') {
+      logger.info(`WhatsApp connected as +${number}`);
+    } else if (connection === 'close') {
       botInfo.connected = false;
+      const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
+      logger.warn(`WhatsApp disconnected. Status code: ${statusCode}`);
+      console.log(chalk.yellow(`⚠ WhatsApp disconnected (status: ${statusCode})`));
     }
   });
 
@@ -173,31 +170,32 @@ export async function startWhatsApp() {
     if (type !== 'notify') return;
     for (const msg of messages) {
       if (!msg.message) continue;
-      await handleMessage(sock, msg, commands).catch((e) =>
-        logger.error('Message handler error:', e.message),
-      );
+      await handleMessage(sock, msg, commands).catch((e) => {
+        logger.error('Message handler error:', e);
+        console.error(chalk.red('[MessageHandler Error]'), e);
+      });
     }
   });
 
   sock.ev.on('groups.update', async (updates) => {
     for (const update of updates) {
-      await handleGroupUpdate(sock, update).catch((e) =>
-        logger.error('Group update error:', e.message),
-      );
+      await handleGroupUpdate(sock, update).catch((e) => {
+        logger.error('Group update error:', e);
+      });
     }
   });
 
   sock.ev.on('group-participants.update', async (update) => {
-    await handleParticipantUpdate(sock, update).catch((e) =>
-      logger.error('Participant update error:', e.message),
-    );
+    await handleParticipantUpdate(sock, update).catch((e) => {
+      logger.error('Participant update error:', e);
+    });
   });
 
   sock.ev.on('call', async (calls) => {
     for (const call of calls) {
-      await handleCall(sock, call).catch((e) =>
-        logger.error('Call handler error:', e.message),
-      );
+      await handleCall(sock, call).catch((e) => {
+        logger.error('Call handler error:', e);
+      });
     }
   });
 
