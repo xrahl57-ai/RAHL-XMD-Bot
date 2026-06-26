@@ -37,7 +37,6 @@
     "mime-types": "^2.1.35",
     "pino": "^9.6.0",
     "pino-http": "^10.5.0",
-    "@distube/ytdl-core": "^4.16.12",
-    "youtube-sr": "^4.3.12"
+    "play-dl": "^1.9.7"
   }
 }
