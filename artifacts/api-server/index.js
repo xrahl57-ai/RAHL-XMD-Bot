@@ -5,7 +5,7 @@ import { connectMongoDB } from './src/database/mongodb.js';
 import { startWhatsApp } from './src/services/whatsapp.js';
 import { startDashboard } from './src/services/dashboard.js';
 import { logger } from './src/utils/logger.js';
-import { validateSession } from './src/utils/sessionLoader.js';
+import { runSessionDiagnostic } from './src/utils/sessionDiagnostic.js';
 
 function printBanner() {
   try {
@@ -27,20 +27,27 @@ async function main() {
   console.log(chalk.hex('#7B2FBE')('✓ Environment Loaded'));
   logger.info('RAHL XMD starting up...');
 
-  const sessionId = process.env.SESSION_ID;
-
-  if (!sessionId) {
-    const err = new Error('SESSION_ID is not set in .env — cannot start without a valid session.');
-    logger.error(err.message);
-    console.error(chalk.red('✗ SESSION_ID missing. Set SESSION_ID in your .env file.'));
+  if (!process.env.SESSION_ID) {
+    logger.error('SESSION_ID is not set in environment variables.');
+    console.error(chalk.red('✗ SESSION_ID missing. Set SESSION_ID in your environment.'));
     process.exit(1);
   }
 
-  const sessionValid = validateSession(sessionId);
-  if (!sessionValid) {
-    const err = new Error('SESSION_ID failed Base64 decode/parse — the value appears corrupt or truncated.');
-    logger.error(err.message);
-    console.error(chalk.red('✗ Session decode failed:'), err.message);
+  const diag = runSessionDiagnostic();
+
+  if (!diag.pass) {
+    logger.error(`Session diagnostic failed — reason: ${diag.reason}`);
+    console.error(chalk.red('\n✗ SESSION DIAGNOSTIC FAILED'));
+    console.error(chalk.red(`  Reason   : ${diag.reason}`));
+    if (diag.error)          console.error(chalk.red(`  Error    : ${diag.error}`));
+    if (diag.position >= 0)  console.error(chalk.red(`  Position : ${diag.position}`));
+    if (diag.rawLength)      console.error(chalk.red(`  Raw len  : ${diag.rawLength}`));
+    if (diag.cleanedLength)  console.error(chalk.red(`  Cleaned  : ${diag.cleanedLength}`));
+    if (diag.bufferBytes)    console.error(chalk.red(`  Bytes    : ${diag.bufferBytes}`));
+    if (diag.decodedLength)  console.error(chalk.red(`  Decoded  : ${diag.decodedLength}`));
+    if (diag.balanced !== undefined) console.error(chalk.red(`  Balanced : ${diag.balanced}`));
+    if (diag.quotesEven !== undefined) console.error(chalk.red(`  QuotesOK : ${diag.quotesEven}`));
+    console.error(chalk.yellow('\n  → Check /tmp/session_debug.txt in Render shell for the raw decoded content.'));
     process.exit(1);
   }
 
