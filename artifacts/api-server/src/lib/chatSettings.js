@@ -15,12 +15,14 @@ export async function getAntiDelete(jid) {
   if (jid.endsWith('@g.us')) {
     try {
       const doc = await Group.findOne({ jid }).lean();
-      const val = doc?.antidelete ?? false;
+      // Default ON unless explicitly disabled
+      const val = doc?.antidelete !== false;
       settingsCache.set(jid, val);
       return val;
-    } catch { return false; }
+    } catch { return true; }
   }
-  return false;
+  // Private chats: ON by default
+  return true;
 }
 
 export async function setAntiDelete(jid, enabled) {

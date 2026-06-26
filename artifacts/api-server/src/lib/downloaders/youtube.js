@@ -14,7 +14,7 @@
  */
 
 import ytdl from '@distube/ytdl-core';
-import YouTube from 'youtube-sr';
+import { YouTube } from 'youtube-sr';
 
 const YT_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)/;
 
