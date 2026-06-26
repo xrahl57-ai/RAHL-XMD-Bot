@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import chalk from 'chalk';
 import figlet from 'figlet';
+import cron from 'node-cron';
+import axios from 'axios';
 import { connectMongoDB } from './src/database/mongodb.js';
 import { startWhatsApp } from './src/services/whatsapp.js';
 import { startDashboard } from './src/services/dashboard.js';
@@ -56,6 +58,20 @@ async function main() {
     console.error(chalk.red('✗ Dashboard error:'), err.message || err);
     process.exit(1);
   }
+
+  // Keep-alive: ping own health endpoint every 14 minutes so Render never sleeps
+  const selfUrl = process.env.RENDER_EXTERNAL_URL
+    ? `${process.env.RENDER_EXTERNAL_URL}/healthz`
+    : `http://localhost:${process.env.PORT || 3000}/healthz`;
+
+  cron.schedule('*/14 * * * *', async () => {
+    try {
+      await axios.get(selfUrl, { timeout: 10000 });
+      logger.info('[keep-alive] Pinged self — bot stays awake');
+    } catch (e) {
+      logger.warn('[keep-alive] Ping failed:', e.message);
+    }
+  });
 
   console.log('');
   console.log(chalk.hex('#FFD700')('👑━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━👑'));
