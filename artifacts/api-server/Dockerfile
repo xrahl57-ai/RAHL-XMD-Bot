@@ -3,6 +3,7 @@ FROM node:20-slim
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
+    git \
     ffmpeg \
     libwebp-dev \
     && rm -rf /var/lib/apt/lists/*
