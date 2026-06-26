@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import NodeCache from 'node-cache';
 import { logger } from '../utils/logger.js';
-import { decodeSession } from '../utils/sessionLoader.js';
+import { decodeAndParseSession } from '../utils/sessionLoader.js';
 import { config } from '../config/config.js';
 import { loadCommands } from '../handlers/commandHandler.js';
 import { handleMessage } from '../handlers/messageHandler.js';
@@ -52,32 +52,47 @@ export function getBotInfo() {
 
 function restoreSessionFromBase64() {
   const sessionId = config.sessionId;
-  if (!sessionId) return false;
+
+  if (!sessionId) {
+    logger.error('SESSION_ID is not set in environment variables.');
+    console.error(chalk.red('✗ SESSION_ID missing — set it in your environment.'));
+    return false;
+  }
+
+  console.log(chalk.hex('#7B2FBE')('✓ SESSION_ID found — beginning decode...'));
+
+  const result = decodeAndParseSession(sessionId);
+
+  if (!result) {
+    logger.error('Session decode/parse failed — see diagnostic output above for exact reason.');
+    console.error(chalk.red('✗ SESSION_ID failed to decode/parse — bot cannot start without a valid session.'));
+    return false;
+  }
 
   try {
-    const sessionData = decodeSession(sessionId);
-    if (!sessionData) {
-      logger.error('Session decoding returned null — SESSION_ID may be corrupt.');
-      return false;
-    }
-
     mkdirSync(SESSION_DIR, { recursive: true });
 
-    const creds = sessionData.creds || sessionData;
-    writeFileSync(join(SESSION_DIR, 'creds.json'), JSON.stringify(creds, null, 2));
+    writeFileSync(join(SESSION_DIR, 'creds.json'), JSON.stringify(result.creds, null, 2));
+    logger.info(`creds.json written to .session/ (layout: ${result.layout}, source: ${result.source})`);
+    console.log(chalk.hex('#7B2FBE')(`✓ creds.json written (layout: ${result.layout})`));
 
-    if (sessionData.keys) {
+    if (result.keys && typeof result.keys === 'object' && Object.keys(result.keys).length > 0) {
       writeFileSync(
         join(SESSION_DIR, 'app-state-sync-key.json'),
-        JSON.stringify(sessionData.keys, null, 2),
+        JSON.stringify(result.keys, null, 2),
       );
+      logger.info('app-state-sync-key.json written to .session/');
+      console.log(chalk.hex('#7B2FBE')('✓ keys written to .session/'));
+    } else {
+      logger.info('No keys in session data — skipping app-state-sync-key.json');
     }
 
-    logger.info('Session restored from BASE64 to .session/ successfully.');
+    console.log(chalk.hex('#7B2FBE')('✓ Initializing Baileys with restored session...'));
+    logger.info('Session fully restored — Baileys can now initialize.');
     return true;
   } catch (err) {
-    logger.error('restoreSessionFromBase64 failed:', err);
-    console.error(chalk.red('✗ Session restore error:'), err);
+    logger.error('Failed to write session files to .session/:', err.message);
+    console.error(chalk.red('✗ Session file write error:'), err.message);
     return false;
   }
 }
