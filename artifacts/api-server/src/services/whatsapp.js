@@ -214,6 +214,18 @@ export async function startWhatsApp() {
     });
   });
 
+  // Baileys also fires deletions as messages.update with protocolMessage type 0 (REVOKE)
+  sock.ev.on('messages.update', async (updates) => {
+    const revokedKeys = updates
+      .filter((u) => u.update?.message?.protocolMessage?.type === 0)
+      .map((u) => u.key);
+    if (revokedKeys.length > 0) {
+      handleDeletedMessages(sock, { keys: revokedKeys }).catch((e) => {
+        logger.error('Anti-delete (update) error:', e.message);
+      });
+    }
+  });
+
   sock.ev.on('groups.update', async (updates) => {
     for (const update of updates) {
       await handleGroupUpdate(sock, update).catch((e) => {

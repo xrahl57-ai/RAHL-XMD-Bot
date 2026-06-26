@@ -1,18 +1,17 @@
 /**
- * YouTube Downloader Library — RAHL XMD
+ * YouTube Downloader — RAHL XMD
  *
- * Uses play-dl which bypasses YouTube bot-detection without sign-in.
- *
- * Exports:
- *   searchYouTube(query)         → first matching video info
- *   getYouTubeInfo(url)          → full video metadata
- *   downloadAudioBuffer(url)     → audio as Buffer (for WhatsApp sendMessage)
- *   getBestVideoFormat(url)      → { url, mimeType, quality } for ≤360p mp4
- *
- * Error handling: All functions throw descriptive errors. Callers must catch.
+ * Uses youtubei.js (Innertube) — YouTube's own internal API.
+ * No sign-in, no bot detection, works on any server.
  */
 
-import playdl from 'play-dl';
+import { Innertube } from 'youtubei.js';
+
+let yt = null;
+async function getClient() {
+  if (!yt) yt = await Innertube.create({ retrieve_player: false });
+  return yt;
+}
 
 const YT_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)/;
 
@@ -34,87 +33,84 @@ export function formatViews(n) {
   return String(n);
 }
 
-/**
- * Search YouTube for a query string.
- * Returns the first result with { id, url, title, duration, thumbnail, views, channel }.
- */
 export async function searchYouTube(query) {
-  const results = await playdl.search(query, { source: { youtube: 'video' }, limit: 1 });
-  if (!results || results.length === 0) throw new Error('No results found for: ' + query);
-  const v = results[0];
+  const client = await getClient();
+  const search = await client.search(query, { type: 'video' });
+  const videos = search.videos;
+  if (!videos || videos.length === 0) throw new Error('No results found for: ' + query);
+  const v = videos[0];
+  const id = v.id || v.video_id;
   return {
-    id: v.id,
-    url: v.url,
-    title: v.title || 'Unknown',
-    duration: formatDuration(v.durationInSec),
-    durationSeconds: v.durationInSec || 0,
-    thumbnail: v.thumbnails?.[0]?.url || '',
-    views: formatViews(v.views),
-    channel: v.channel?.name || 'Unknown',
+    id,
+    url: `https://www.youtube.com/watch?v=${id}`,
+    title: v.title?.text || v.title || 'Unknown',
+    duration: v.duration?.text || formatDuration(v.duration?.seconds),
+    durationSeconds: v.duration?.seconds || 0,
+    thumbnail: v.best_thumbnail?.url || v.thumbnails?.[0]?.url || '',
+    views: v.short_view_count?.text || v.view_count?.text || '0',
+    channel: v.author?.name || 'Unknown',
   };
 }
 
-/**
- * Get full metadata for a YouTube URL.
- */
 export async function getYouTubeInfo(url) {
   if (!isYouTubeUrl(url)) throw new Error('Not a valid YouTube URL.');
-  const info = await playdl.video_info(url);
-  const details = info.video_details;
+  const client = await getClient();
+  const idMatch = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
+  if (!idMatch) throw new Error('Could not extract video ID from URL.');
+  const videoId = idMatch[1];
+  const info = await client.getBasicInfo(videoId);
+  const details = info.basic_info;
   return {
-    title: details.title || 'Unknown',
-    duration: formatDuration(details.durationInSec),
-    durationSeconds: details.durationInSec || 0,
-    thumbnail: details.thumbnails?.[0]?.url || '',
-    channel: details.channel?.name || 'Unknown',
-    views: formatViews(details.views),
+    id: videoId,
     url,
-    info,
+    title: details.title || 'Unknown',
+    duration: formatDuration(details.duration),
+    durationSeconds: details.duration || 0,
+    thumbnail: details.thumbnail?.[0]?.url || '',
+    channel: details.author || 'Unknown',
+    views: formatViews(details.view_count),
   };
 }
 
-/**
- * Download YouTube audio and return a Buffer.
- * Uses play-dl stream — no sign-in required.
- */
-export async function downloadAudioBuffer(url) {
-  const stream = await playdl.stream(url, { quality: 2 });
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    stream.stream.on('data', (chunk) => chunks.push(chunk));
-    stream.stream.on('end', () => resolve(Buffer.concat(chunks)));
-    stream.stream.on('error', reject);
-  });
+async function streamToBuffer(readableStream) {
+  const chunks = [];
+  const reader = readableStream.getReader();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(Buffer.from(value));
+  }
+  return Buffer.concat(chunks);
 }
 
-/**
- * For video: play-dl streams audio+video separately, so we return
- * a buffer of the audio stream (best available) since WhatsApp audio
- * is the primary use-case. For future video support, use ytdl formats.
- */
-export async function getBestVideoFormat(url) {
-  const info = await playdl.video_info(url);
-  const details = info.video_details;
-  const stream = await playdl.stream(url, { quality: 2 });
-  const buffer = await new Promise((resolve, reject) => {
-    const chunks = [];
-    stream.stream.on('data', (c) => chunks.push(c));
-    stream.stream.on('end', () => resolve(Buffer.concat(chunks)));
-    stream.stream.on('error', reject);
-  });
+export async function downloadAudioBuffer(url) {
+  const client = await getClient();
+  const idMatch = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
+  if (!idMatch) throw new Error('Could not extract video ID from URL.');
+  const videoId = idMatch[1];
+  const stream = await client.download(videoId, { type: 'audio', quality: 'best', format: 'mp4' });
+  return streamToBuffer(stream);
+}
 
+export async function getBestVideoFormat(url) {
+  const client = await getClient();
+  const idMatch = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
+  if (!idMatch) throw new Error('Could not extract video ID from URL.');
+  const videoId = idMatch[1];
+  const info = await client.getBasicInfo(videoId);
+  const details = info.basic_info;
+  const stream = await client.download(videoId, { type: 'audio', quality: 'best', format: 'mp4' });
+  const buffer = await streamToBuffer(stream);
   const sizeMB = (buffer.length / 1024 / 1024).toFixed(1);
   if (buffer.length > 60 * 1024 * 1024) {
-    throw new Error(`File too large (${sizeMB} MB). WhatsApp limit is ~60 MB. Try a shorter video.`);
+    throw new Error(`File too large (${sizeMB} MB). WhatsApp limit is ~60 MB.`);
   }
-
   return {
     buffer,
-    mimeType: 'video/mp4',
-    quality: 'SD',
+    mimeType: 'audio/mp4',
     sizeMB,
     title: details.title || 'Unknown',
-    duration: formatDuration(details.durationInSec),
-    channel: details.channel?.name || 'Unknown',
+    duration: formatDuration(details.duration),
+    channel: details.author || 'Unknown',
   };
 }
