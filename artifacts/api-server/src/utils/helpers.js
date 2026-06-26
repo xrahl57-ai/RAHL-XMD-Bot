@@ -26,7 +26,7 @@ export function sleep(ms) {
 }
 
 export function getJidNumber(jid) {
-  return jid?.split('@')[0] || '';
+  return jid?.split('@')[0]?.split(':')[0] || '';
 }
 
 export function isGroup(jid) {
