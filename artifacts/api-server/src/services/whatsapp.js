@@ -20,6 +20,11 @@ import { handleConnection } from '../events/connection.js';
 import { handleGroupUpdate } from '../events/groupUpdate.js';
 import { handleParticipantUpdate } from '../events/participantUpdate.js';
 import { handleCall } from '../events/callHandler.js';
+import {
+  saveSessionToMongo,
+  loadSessionFromMongo,
+  hasSessionInMongo,
+} from '../database/sessionStore.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SESSION_DIR = join(__dirname, '../../.session');
@@ -34,89 +39,70 @@ const msgRetryCache = new NodeCache();
 const silentLogger = {
   fatal: (msg, ...args) => logger.error(`[Baileys FATAL] ${msg}`, ...args),
   error: (msg, ...args) => logger.error(`[Baileys ERROR] ${msg}`, ...args),
-  warn: (msg, ...args) => logger.warn(`[Baileys WARN] ${msg}`, ...args),
-  info: () => {},
+  warn:  (msg, ...args) => logger.warn(`[Baileys WARN] ${msg}`, ...args),
+  info:  () => {},
   debug: () => {},
   trace: () => {},
   child: () => silentLogger,
   level: 'silent',
 };
 
-export function getBotSocket() {
-  return botSocket;
-}
-
+export function getBotSocket() { return botSocket; }
 export function getBotInfo() {
   return { ...botInfo, uptime: Date.now() - startTime, startTime };
 }
 
-function restoreSessionFromBase64() {
+async function resolveSession() {
+  mkdirSync(SESSION_DIR, { recursive: true });
+
+  const credsExist = existsSync(join(SESSION_DIR, 'creds.json'));
+
+  if (credsExist) {
+    console.log(chalk.hex('#7B2FBE')('✓ Session found in .session/ (container cache)'));
+    logger.info('Session found in .session/ — using existing files.');
+    return 'file';
+  }
+
+  const mongoAvailable = await hasSessionInMongo('rahl-xmd').catch(() => false);
+  if (mongoAvailable) {
+    console.log(chalk.hex('#7B2FBE')('✓ Session found in MongoDB — restoring...'));
+    const restored = await loadSessionFromMongo(SESSION_DIR, 'rahl-xmd');
+    if (restored) return 'mongo';
+    logger.warn('MongoDB session found but restore failed — trying SESSION_ID.');
+  }
+
   const sessionId = config.sessionId;
+  if (sessionId) {
+    console.log(chalk.hex('#7B2FBE')('✓ Trying SESSION_ID env var...'));
+    const result = decodeAndParseSession(sessionId);
+    if (result) {
+      writeFileSync(join(SESSION_DIR, 'creds.json'), JSON.stringify(result.creds, null, 2));
+      logger.info(`Session restored from SESSION_ID (layout: ${result.layout}, source: ${result.source})`);
+      console.log(chalk.hex('#7B2FBE')(`✓ Session decoded from SESSION_ID (layout: ${result.layout})`));
 
-  if (!sessionId) {
-    logger.error('SESSION_ID is not set in environment variables.');
-    console.error(chalk.red('✗ SESSION_ID missing — set it in your environment.'));
-    return false;
-  }
-
-  console.log(chalk.hex('#7B2FBE')('✓ SESSION_ID found — beginning decode...'));
-
-  const result = decodeAndParseSession(sessionId);
-
-  if (!result) {
-    logger.error('Session decode/parse failed — see diagnostic output above for exact reason.');
-    console.error(chalk.red('✗ SESSION_ID failed to decode/parse — bot cannot start without a valid session.'));
-    return false;
-  }
-
-  try {
-    mkdirSync(SESSION_DIR, { recursive: true });
-
-    writeFileSync(join(SESSION_DIR, 'creds.json'), JSON.stringify(result.creds, null, 2));
-    logger.info(`creds.json written to .session/ (layout: ${result.layout}, source: ${result.source})`);
-    console.log(chalk.hex('#7B2FBE')(`✓ creds.json written (layout: ${result.layout})`));
-
-    if (result.keys && typeof result.keys === 'object' && Object.keys(result.keys).length > 0) {
-      writeFileSync(
-        join(SESSION_DIR, 'app-state-sync-key.json'),
-        JSON.stringify(result.keys, null, 2),
-      );
-      logger.info('app-state-sync-key.json written to .session/');
-      console.log(chalk.hex('#7B2FBE')('✓ keys written to .session/'));
-    } else {
-      logger.info('No keys in session data — skipping app-state-sync-key.json');
+      if (result.keys && typeof result.keys === 'object' && Object.keys(result.keys).length > 0) {
+        writeFileSync(
+          join(SESSION_DIR, 'app-state-sync-key.json'),
+          JSON.stringify(result.keys, null, 2),
+        );
+      }
+      return 'env';
     }
-
-    console.log(chalk.hex('#7B2FBE')('✓ Initializing Baileys with restored session...'));
-    logger.info('Session fully restored — Baileys can now initialize.');
-    return true;
-  } catch (err) {
-    logger.error('Failed to write session files to .session/:', err.message);
-    console.error(chalk.red('✗ Session file write error:'), err.message);
-    return false;
+    logger.warn('SESSION_ID decode failed — falling through to pairing code mode.');
+    console.log(chalk.yellow('⚠ SESSION_ID is corrupt or incomplete — will use pairing code.'));
   }
+
+  return 'pairing';
 }
 
 export async function startWhatsApp() {
-  mkdirSync(SESSION_DIR, { recursive: true });
-
-  const sessionExists = existsSync(join(SESSION_DIR, 'creds.json'));
-  if (!sessionExists) {
-    const restored = restoreSessionFromBase64();
-    if (!restored) {
-      const err = new Error('Could not restore session from SESSION_ID — creds.json missing after decode attempt.');
-      logger.error(err.message);
-      console.error(chalk.red('✗ Session restore failed:'), err.message);
-      throw err;
-    }
-  }
+  const sessionSource = await resolveSession();
 
   console.log(chalk.hex('#7B2FBE')('✓ Baileys Loaded'));
   logger.info('Baileys loaded successfully.');
 
   const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
   const { version } = await fetchLatestBaileysVersion();
-
   logger.info(`Baileys version: ${version.join('.')}`);
 
   const commands = await loadCommands();
@@ -124,7 +110,7 @@ export async function startWhatsApp() {
   logger.info(`Commands loaded: ${commands.size}`);
 
   console.log(chalk.hex('#7B2FBE')('✓ Connecting To WhatsApp...'));
-  logger.info('Attempting WhatsApp connection...');
+  logger.info(`Attempting WhatsApp connection (session source: ${sessionSource})...`);
 
   const sock = makeWASocket({
     version,
@@ -147,7 +133,29 @@ export async function startWhatsApp() {
 
   botSocket = sock;
 
-  sock.ev.on('creds.update', saveCreds);
+  if (sessionSource === 'pairing') {
+    const ownerNumber = config.ownerNumber.replace(/\D/g, '');
+    try {
+      await new Promise((r) => setTimeout(r, 3000));
+      const code = await sock.requestPairingCode(ownerNumber);
+      const formatted = code.match(/.{1,4}/g)?.join('-') || code;
+      console.log(chalk.hex('#FFD700')('\n👑━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━👑'));
+      console.log(chalk.hex('#FFD700').bold(`  PAIRING CODE : ${formatted}`));
+      console.log(chalk.white('  1. Open WhatsApp → Linked Devices → Link a Device'));
+      console.log(chalk.white('  2. Tap "Link with Phone Number Instead"'));
+      console.log(chalk.white(`  3. Enter: ${formatted}`));
+      console.log(chalk.hex('#FFD700')('👑━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━👑\n'));
+      logger.info(`Pairing code issued: ${formatted}`);
+    } catch (err) {
+      logger.error('Failed to request pairing code:', err.message);
+      console.error(chalk.red('✗ Could not generate pairing code:'), err.message);
+    }
+  }
+
+  sock.ev.on('creds.update', async () => {
+    await saveCreds();
+    saveSessionToMongo(SESSION_DIR, 'rahl-xmd').catch(() => {});
+  });
 
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
@@ -173,6 +181,10 @@ export async function startWhatsApp() {
       botInfo.name = sock.user?.name || config.botName;
       console.log(chalk.hex('#7B2FBE')('✓ WhatsApp Connected'));
       logger.info(`WhatsApp connected as +${number}`);
+
+      await saveSessionToMongo(SESSION_DIR, 'rahl-xmd').catch(() => {});
+      console.log(chalk.hex('#7B2FBE')('✓ Session saved to MongoDB'));
+      logger.info('Full session saved to MongoDB after successful connection.');
     } else if (connection === 'close') {
       botInfo.connected = false;
       const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
