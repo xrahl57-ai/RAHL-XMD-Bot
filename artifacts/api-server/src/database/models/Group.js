@@ -9,6 +9,7 @@ const groupSchema = new mongoose.Schema({
   antibot: { type: Boolean, default: false },
   antispam: { type: Boolean, default: false },
   muted: { type: Boolean, default: false },
+  antidelete: { type: Boolean, default: false },
   botAdmin: { type: Boolean, default: false },
   firstSeen: { type: Date, default: Date.now },
   lastActivity: { type: Date, default: Date.now },

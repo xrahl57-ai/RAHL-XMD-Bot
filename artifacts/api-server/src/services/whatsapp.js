@@ -25,6 +25,8 @@ import {
   loadSessionFromMongo,
   hasSessionInMongo,
 } from '../database/sessionStore.js';
+import { cacheIncoming, handleDeletedMessages } from '../events/antiDelete.js';
+import { handleViewOnce } from '../events/viewOnce.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SESSION_DIR = join(__dirname, '../../.session');
@@ -197,11 +199,19 @@ export async function startWhatsApp() {
     if (type !== 'notify') return;
     for (const msg of messages) {
       if (!msg.message) continue;
+      cacheIncoming(sock, msg).catch(() => {});
+      handleViewOnce(sock, msg).catch(() => {});
       await handleMessage(sock, msg, commands).catch((e) => {
         logger.error('Message handler error:', e);
         console.error(chalk.red('[MessageHandler Error]'), e);
       });
     }
+  });
+
+  sock.ev.on('messages.delete', async (item) => {
+    handleDeletedMessages(sock, item).catch((e) => {
+      logger.error('Anti-delete handler error:', e.message);
+    });
   });
 
   sock.ev.on('groups.update', async (updates) => {
