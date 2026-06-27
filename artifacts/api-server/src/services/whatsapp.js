@@ -187,6 +187,22 @@ export async function startWhatsApp() {
       await saveSessionToMongo(SESSION_DIR, 'rahl-xmd').catch(() => {});
       console.log(chalk.hex('#7B2FBE')('✓ Session saved to MongoDB'));
       logger.info('Full session saved to MongoDB after successful connection.');
+
+      // Send banner to owner DM on successful connection
+      try {
+        const { readFileSync } = await import('fs');
+        const { dirname, join } = await import('path');
+        const { fileURLToPath } = await import('url');
+        const __dir = dirname(fileURLToPath(import.meta.url));
+        const bannerPath = join(__dir, '../assets/banner.jpg');
+        const banner = readFileSync(bannerPath);
+        await sock.sendMessage(config.ownerJid, {
+          image: banner,
+          caption: `╔══════════════════════╗\n║    👑 *RAHL XMD* 👑    ║\n╚══════════════════════╝\n\n✅ *Bot is Online!*\n📱 *Number:* +${number}\n🛡️ *Status:* Connected\n\n⚡ _RAHL XMD ready to serve, LORD RAHL!_`,
+        });
+      } catch (e) {
+        logger.warn('[startup] Could not send banner to owner:', e.message);
+      }
     } else if (connection === 'close') {
       botInfo.connected = false;
       const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
