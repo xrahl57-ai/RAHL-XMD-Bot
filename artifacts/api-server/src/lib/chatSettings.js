@@ -21,7 +21,8 @@ export async function getAntiDelete(jid) {
       return val;
     } catch { return true; }
   }
-  // Private chats: ON by default
+  // Private chats: ON by default — cache so we don't re-evaluate every message
+  settingsCache.set(jid, true);
   return true;
 }
 
