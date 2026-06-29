@@ -2,20 +2,17 @@
  * Anti-Delete Recovery — RAHL XMD Security Engine
  *
  * Caches incoming messages (with media buffers). When a delete event fires,
- * recovers the message and sends it to the BOT OWNER's DM (private chat).
+ * recovers the message and sends it to the SAME CHAT (DM of the person or group).
  *
  * Hooked via:
  *   cacheIncoming(sock, msg)           — call from messages.upsert
- *   handleDeletedMessages(sock, keys)  — call from messages.delete
+ *   handleDeletedMessages(sock, keys)  — call from messages.delete / messages.update
  */
 
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
 import { storeMessage, getStoredMessage } from '../lib/messageCache.js';
 import { getAntiDelete } from '../lib/chatSettings.js';
-import { config } from '../config/config.js';
 import { logger } from '../utils/logger.js';
-
-const OWNER_JID = config.ownerJid; // e.g. 254112399557@s.whatsapp.net
 
 function getMessageType(msg) {
   const m = msg.message;
@@ -61,9 +58,13 @@ export async function cacheIncoming(sock, msg) {
 
     let buffer = null;
     if (MEDIA_TYPES.has(type)) {
-      try {
-        buffer = await downloadMediaMessage(msg, 'buffer', {});
-      } catch (_) {}
+      // Download in background — don't block message flow
+      downloadMediaMessage(msg, 'buffer', {})
+        .then((buf) => {
+          const entry = getStoredMessage(id);
+          if (entry) entry.buffer = buf;
+        })
+        .catch(() => {});
     }
 
     storeMessage(id, {
@@ -93,7 +94,6 @@ export async function handleDeletedMessages(sock, item) {
       const { type, sender, pushName, text, caption, buffer } = entry;
       const senderNum = sender.split('@')[0];
       const isGroup = jid.endsWith('@g.us');
-      const chatLabel = isGroup ? `👥 Group: ${jid.split('@')[0]}` : `💬 Private Chat`;
 
       const typeLabel = {
         text: '💬 Text', image: '🖼️ Image', video: '🎥 Video',
@@ -101,29 +101,36 @@ export async function handleDeletedMessages(sock, item) {
         sticker: '🎭 Sticker', location: '📍 Location', contact: '👤 Contact',
       }[type] || '📦 Unknown';
 
-      // Always send to OWNER DM
-      const target = OWNER_JID;
+      // Send recovered message back to the SAME CHAT (DM of person or group)
+      // so the person using the bot sees the deleted content immediately
+      const target = jid;
 
-      const header = `╔══════════════════╗\n     🦅 *RAHL XMD*\n╚══════════════════╝\n\n🚨 *DELETED MESSAGE RECOVERED*\n\n👤 *Sender:* @${senderNum} (${pushName})\n📍 *From:* ${chatLabel}\n📂 *Type:* ${typeLabel}\n🛡️ *Protection:* ACTIVE 🟢`;
+      const header = `╔══════════════════╗\n     🦅 *RAHL XMD*\n╚══════════════════╝\n\n🚨 *DELETED MESSAGE RECOVERED*\n\n👤 *Sender:* @${senderNum}${pushName !== senderNum ? ` (${pushName})` : ''}\n📂 *Type:* ${typeLabel}\n🛡️ *Anti-Delete:* ACTIVE 🟢`;
+
+      const mentions = isGroup ? [sender] : [];
 
       if (type === 'text' && text) {
         await sock.sendMessage(target, {
-          text: `${header}\n\n📝 *Message:*\n${text}\n\n♻️ *Recovery:* SUCCESS ✅\n⚡ _RAHL SECURITY SYSTEM_`,
+          text: `${header}\n\n📝 *Message:*\n${text}\n\n♻️ _Recovered by RAHL XMD_`,
+          mentions,
         });
       } else if (buffer && type === 'image') {
         await sock.sendMessage(target, {
           image: buffer,
-          caption: `${header}\n\n${caption ? `📝 _Caption:_ ${caption}\n\n` : ''}♻️ *Recovery:* SUCCESS ✅\n⚡ _RAHL SECURITY SYSTEM_`,
+          caption: `${header}\n\n${caption ? `📝 _Caption:_ ${caption}\n\n` : ''}♻️ _Recovered by RAHL XMD_`,
+          mentions,
         });
       } else if (buffer && type === 'video') {
         await sock.sendMessage(target, {
           video: buffer,
-          caption: `${header}\n\n${caption ? `📝 _Caption:_ ${caption}\n\n` : ''}♻️ *Recovery:* SUCCESS ✅\n⚡ _RAHL SECURITY SYSTEM_`,
+          caption: `${header}\n\n${caption ? `📝 _Caption:_ ${caption}\n\n` : ''}♻️ _Recovered by RAHL XMD_`,
           mimetype: 'video/mp4',
+          mentions,
         });
       } else if (buffer && (type === 'audio' || type === 'voice')) {
         await sock.sendMessage(target, {
-          text: `${header}\n\n♻️ *Recovery:* SUCCESS ✅\n⚡ _RAHL SECURITY SYSTEM_`,
+          text: `${header}\n\n♻️ _Recovered by RAHL XMD_`,
+          mentions,
         });
         await sock.sendMessage(target, {
           audio: buffer,
@@ -134,23 +141,24 @@ export async function handleDeletedMessages(sock, item) {
         const fname = entry.msg.message?.documentMessage?.fileName || 'document';
         const mime = entry.msg.message?.documentMessage?.mimetype || 'application/octet-stream';
         await sock.sendMessage(target, {
-          text: `${header}\n\n♻️ *Recovery:* SUCCESS ✅\n⚡ _RAHL SECURITY SYSTEM_`,
+          text: `${header}\n\n♻️ _Recovered by RAHL XMD_`,
+          mentions,
         });
-        await sock.sendMessage(target, {
-          document: buffer, mimetype: mime, fileName: fname,
-        });
+        await sock.sendMessage(target, { document: buffer, mimetype: mime, fileName: fname });
       } else if (buffer && type === 'sticker') {
         await sock.sendMessage(target, {
-          text: `${header}\n\n♻️ *Recovery:* SUCCESS ✅\n⚡ _RAHL SECURITY SYSTEM_`,
+          text: `${header}\n\n♻️ _Recovered by RAHL XMD_`,
+          mentions,
         });
         await sock.sendMessage(target, { sticker: buffer });
       } else {
         await sock.sendMessage(target, {
-          text: `${header}\n\n📦 _Media expired or unavailable._\n\n♻️ *Recovery:* PARTIAL ⚠️\n⚡ _RAHL SECURITY SYSTEM_`,
+          text: `${header}\n\n📦 _Media not yet cached — try again after a moment._\n\n♻️ _RAHL XMD_`,
+          mentions,
         });
       }
 
-      logger.info(`[antiDelete] Recovered ${type} from ${senderNum} → sent to owner DM`);
+      logger.info(`[antiDelete] Recovered ${type} from ${senderNum} → sent to ${jid}`);
     }
   } catch (err) {
     logger.error('[antiDelete] handleDeletedMessages error:', err.message);

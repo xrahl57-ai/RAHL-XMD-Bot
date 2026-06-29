@@ -2,16 +2,23 @@
  * YouTube Downloader — RAHL XMD
  *
  * Uses youtubei.js (Innertube) — YouTube's own internal API.
- * No sign-in, no bot detection, works on any server.
+ * generate_session_locally:true avoids calling YouTube for session setup,
+ * bypassing bot-detection / "sign in" errors on headless servers.
  */
 
 import { Innertube } from 'youtubei.js';
 
 let yt = null;
-async function getClient() {
-  if (!yt) yt = await Innertube.create({ retrieve_player: false });
+
+export async function getClient() {
+  if (!yt) {
+    yt = await Innertube.create({ generate_session_locally: true });
+  }
   return yt;
 }
+
+// Pre-warm the client so the first command isn't slow
+getClient().catch(() => {});
 
 const YT_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)/;
 
@@ -101,7 +108,6 @@ export async function getBestVideoFormat(url) {
   const info = await client.getBasicInfo(videoId);
   const details = info.basic_info;
 
-  // Download video stream (combined video+audio at best available quality ≤360p)
   const stream = await client.download(videoId, {
     type: 'video+audio',
     quality: '360p',

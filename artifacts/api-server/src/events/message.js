@@ -5,12 +5,27 @@ import { logger } from '../utils/logger.js';
 const URL_REGEX = /(https?:\/\/[^\s]+)/gi;
 const WHATSAPP_LINK_REGEX = /chat\.whatsapp\.com\/[A-Za-z0-9]+/gi;
 
+// In-memory cache for group settings — avoids a DB round-trip on every message
+const groupSettingsCache = new Map();
+const GROUP_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export async function getGroupAntiSettings(jid) {
   try {
-    return await Group.findOne({ jid }).lean();
+    const now = Date.now();
+    const cached = groupSettingsCache.get(jid);
+    if (cached && now - cached.ts < GROUP_CACHE_TTL) return cached.data;
+
+    const data = await Group.findOne({ jid }).lean();
+    groupSettingsCache.set(jid, { data, ts: now });
+    return data;
   } catch {
     return null;
   }
+}
+
+// Call this whenever group settings change so the cache stays fresh
+export function invalidateGroupCache(jid) {
+  groupSettingsCache.delete(jid);
 }
 
 export async function checkAntiLink(sock, msg, jid, sender) {

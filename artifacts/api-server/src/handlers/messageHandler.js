@@ -65,7 +65,8 @@ export async function handleMessage(sock, msg, commands) {
     const body = extractBody(msg);
     const prefix = config.prefix;
 
-    await incrementStats('messagesReceived');
+    // Fire-and-forget — don't block message flow for stats tracking
+    incrementStats('messagesReceived').catch(() => {});
 
     if (isGroupChat) {
       const antiSettings = await getGroupAntiSettings(jid);
@@ -140,8 +141,9 @@ export async function handleMessage(sock, msg, commands) {
     }
 
     const pushName = msg.pushName || 'User';
-    await upsertUser(sender, pushName);
-    await incrementStats('commandsRun');
+    // Fire-and-forget — DB writes happen in background, command runs immediately
+    upsertUser(sender, pushName).catch(() => {});
+    incrementStats('commandsRun').catch(() => {});
 
     logCommand(getJidNumber(sender), `${prefix}${commandName}`, isGroupChat ? jid : null);
 

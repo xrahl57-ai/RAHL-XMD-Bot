@@ -15,19 +15,29 @@ export default {
   cooldown: 10,
 
   async execute({ sock, msg, jid }) {
+    const ownerName = config.ownerName;
+    const ownerNumber = config.ownerNumber.replace(/\D/g, '');
+
     const text = `╔══════════════════════╗
 ║    👑 *RAHL XMD* 👑    ║
 ╚══════════════════════╝
 
-👑 *Owner Name:* ${config.ownerName}
-📱 *Owner Number:* ${config.ownerNumber}
-🤖 *Bot Name:* ${config.botName}
+👑 *Owner:* ${ownerName}
+📱 *Number:* +${ownerNumber}
+🤖 *Bot:* ${config.botName}
 📦 *Version:* ${config.version}
 
-💬 DM the owner directly:
-wa.me/${config.ownerNumber}
+💬 _Tap the contact card below to DM the owner directly_
 
 ${FOOTER}`;
+
+    // Build a WhatsApp vCard so the user can tap to message / save the owner
+    const vcard =
+      `BEGIN:VCARD\n` +
+      `VERSION:3.0\n` +
+      `FN:${ownerName}\n` +
+      `TEL;type=CELL;type=VOICE;waid=${ownerNumber}:+${ownerNumber}\n` +
+      `END:VCARD`;
 
     if (existsSync(OWNER_IMG)) {
       const imageBuffer = readFileSync(OWNER_IMG);
@@ -35,5 +45,13 @@ ${FOOTER}`;
     } else {
       await sock.sendMessage(jid, { text }, { quoted: msg });
     }
+
+    // Send tappable contact card
+    await sock.sendMessage(jid, {
+      contacts: {
+        displayName: ownerName,
+        contacts: [{ vcard }],
+      },
+    });
   },
 };
