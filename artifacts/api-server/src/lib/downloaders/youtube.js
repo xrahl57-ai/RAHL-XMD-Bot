@@ -1,19 +1,17 @@
 /**
  * YouTube Downloader — RAHL XMD
  *
- * Uses youtubei.js (Innertube) — YouTube's own internal API.
- *
- * Two separate clients are used:
- *   - META client  (WEB, no player): fast search and metadata only
- *   - DL client    (ANDROID): downloads — Android client bypasses
- *     PoToken/bot-detection "LOGIN_REQUIRED" errors on server IPs
- *     because Android uses OAuth rather than browser-session signing.
+ * Search  → youtubei.js (Innertube, WEB client, no player — fast metadata only)
+ * Download → Cobalt public API (api.cobalt.tools) — handles YouTube
+ *            authentication server-side, no API key required, no PoToken issues.
  */
 
 import { Innertube } from 'youtubei.js';
+import axios from 'axios';
 
-let ytMeta = null;   // search + info
-let ytDl   = null;   // downloads
+// ─── Innertube (search / metadata only) ─────────────────────────────────────
+
+let ytMeta = null;
 
 async function getMetaClient() {
   if (!ytMeta) {
@@ -25,20 +23,10 @@ async function getMetaClient() {
   return ytMeta;
 }
 
-async function getDownloadClient() {
-  if (!ytDl) {
-    // 'ANDROID' client does not require signed URLs or PoToken,
-    // so it works on datacenter / server IPs without "LOGIN_REQUIRED".
-    ytDl = await Innertube.create({
-      generate_session_locally: true,
-      client_type: 'ANDROID',
-    });
-  }
-  return ytDl;
-}
+// Pre-warm on startup
+getMetaClient().catch(() => {});
 
-// Pre-warm both clients so the first command is fast
-Promise.all([getMetaClient(), getDownloadClient()]).catch(() => {});
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const YT_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)/;
 
@@ -60,6 +48,14 @@ export function formatViews(n) {
   return String(n);
 }
 
+function extractVideoId(url) {
+  const m = url.match(/(?:v=|youtu\.be\/|shorts\/)([^&?/\s]+)/);
+  if (!m) throw new Error('Could not extract video ID from URL.');
+  return m[1];
+}
+
+// ─── Search & Metadata (youtubei.js) ────────────────────────────────────────
+
 export async function searchYouTube(query) {
   const client = await getMetaClient();
   const search = await client.search(query, { type: 'video' });
@@ -77,12 +73,6 @@ export async function searchYouTube(query) {
     views: v.short_view_count?.text || v.view_count?.text || '0',
     channel: v.author?.name || 'Unknown',
   };
-}
-
-function extractVideoId(url) {
-  const m = url.match(/(?:v=|youtu\.be\/|shorts\/)([^&?/]+)/);
-  if (!m) throw new Error('Could not extract video ID from URL.');
-  return m[1];
 }
 
 export async function getYouTubeInfo(url) {
@@ -103,64 +93,76 @@ export async function getYouTubeInfo(url) {
   };
 }
 
-async function streamToBuffer(readableStream) {
-  const chunks = [];
-  const reader = readableStream.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(Buffer.from(value));
+// ─── Download via Cobalt API ─────────────────────────────────────────────────
+//
+// Cobalt (api.cobalt.tools) processes YouTube server-side — it handles
+// authentication, bot-detection, and URL signing on their end.
+// We just POST the URL and GET back a direct download stream.
+
+const COBALT_API = 'https://api.cobalt.tools/';
+const COBALT_HEADERS = {
+  'Accept': 'application/json',
+  'Content-Type': 'application/json',
+};
+
+async function cobaltDownload(videoUrl, mode = 'audio') {
+  // Step 1 — ask Cobalt for a download URL
+  const body = {
+    url: videoUrl,
+    downloadMode: mode,          // 'audio' or 'auto' (auto = best video+audio)
+    audioFormat: 'mp3',
+    audioBitrate: '128',
+    filenameStyle: 'basic',
+  };
+
+  const res = await axios.post(COBALT_API, body, {
+    headers: COBALT_HEADERS,
+    timeout: 15_000,
+  });
+
+  const { status, url } = res.data || {};
+
+  if (!url || !['tunnel', 'redirect', 'stream'].includes(status)) {
+    const reason = res.data?.error?.code || res.data?.text || 'Unknown cobalt error';
+    throw new Error(`Cobalt returned no download URL: ${reason}`);
   }
-  return Buffer.concat(chunks);
+
+  // Step 2 — stream the audio/video into a buffer
+  const fileRes = await axios.get(url, {
+    responseType: 'arraybuffer',
+    timeout: 120_000,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    },
+    maxContentLength: 80 * 1024 * 1024, // 80 MB safety cap
+  });
+
+  return Buffer.from(fileRes.data);
 }
 
 export async function downloadAudioBuffer(url) {
-  const videoId = extractVideoId(url);
-  const client = await getDownloadClient();
-
-  // Try ANDROID download first
-  try {
-    const stream = await client.download(videoId, {
-      type: 'audio',
-      quality: 'best',
-      format: 'mp4',
-    });
-    return await streamToBuffer(stream);
-  } catch (err) {
-    // If ANDROID client fails too, surface a helpful error
-    throw new Error(`YouTube blocked this download: ${err.message}. Try .ytmp3 <url> with a direct link.`);
-  }
+  if (!isYouTubeUrl(url)) throw new Error('Not a valid YouTube URL.');
+  return cobaltDownload(url, 'audio');
 }
 
 export async function getBestVideoFormat(url) {
-  const videoId = extractVideoId(url);
+  if (!isYouTubeUrl(url)) throw new Error('Not a valid YouTube URL.');
 
-  // Get title/channel from metadata client
-  const metaClient = await getMetaClient();
+  // Fetch metadata separately (fast, no auth needed)
   let title = 'Unknown', duration = 'Unknown', channel = 'Unknown';
   try {
-    const info = await metaClient.getBasicInfo(videoId);
-    const d = info.basic_info;
-    title    = d.title  || 'Unknown';
-    duration = formatDuration(d.duration);
-    channel  = d.author || 'Unknown';
+    const info = await getYouTubeInfo(url);
+    title    = info.title;
+    duration = info.duration;
+    channel  = info.channel;
   } catch (_) {}
 
-  // Download using Android client
-  const dlClient = await getDownloadClient();
-  try {
-    const stream = await dlClient.download(videoId, {
-      type: 'video+audio',
-      quality: '360p',
-      format: 'mp4',
-    });
-    const buffer = await streamToBuffer(stream);
-    const sizeMB = (buffer.length / 1024 / 1024).toFixed(1);
-    if (buffer.length > 60 * 1024 * 1024) {
-      throw new Error(`File too large (${sizeMB} MB). WhatsApp limit is ~60 MB.`);
-    }
-    return { buffer, mimeType: 'video/mp4', quality: '360p', sizeMB, title, duration, channel };
-  } catch (err) {
-    throw new Error(`YouTube blocked this download: ${err.message}`);
+  const buffer = await cobaltDownload(url, 'auto');
+  const sizeMB = (buffer.length / 1024 / 1024).toFixed(1);
+
+  if (buffer.length > 60 * 1024 * 1024) {
+    throw new Error(`File too large (${sizeMB} MB). WhatsApp limit is ~60 MB.`);
   }
+
+  return { buffer, mimeType: 'video/mp4', quality: '360p', sizeMB, title, duration, channel };
 }
