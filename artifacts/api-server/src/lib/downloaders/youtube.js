@@ -1,15 +1,21 @@
 /**
  * YouTube Downloader — RAHL XMD
  *
- * Search  → youtubei.js (Innertube, WEB client, no player — fast metadata only)
- * Download → Cobalt public API (api.cobalt.tools) — handles YouTube
- *            authentication server-side, no API key required, no PoToken issues.
+ * Search/Metadata  → youtubei.js (WEB client, no player, fast)
+ * Audio/Video DL   → YouTube InnerTube API (ANDROID client) called directly via axios.
+ *
+ * Why InnerTube directly?
+ *   The YouTube Android app sends a specific clientName/clientVersion to YouTube's
+ *   own internal API endpoint. YouTube responds with plain (unsigned) HTTPS stream
+ *   URLs for the Android client — no PoToken, no signature cipher, no login needed.
+ *   This is the same thing the official YouTube app does on every Android phone.
+ *   No third-party service is involved, so it can't "change its API" on us.
  */
 
 import { Innertube } from 'youtubei.js';
 import axios from 'axios';
 
-// ─── Innertube (search / metadata only) ─────────────────────────────────────
+// ─── Innertube (search + metadata only) ──────────────────────────────────────
 
 let ytMeta = null;
 
@@ -23,8 +29,7 @@ async function getMetaClient() {
   return ytMeta;
 }
 
-// Pre-warm on startup
-getMetaClient().catch(() => {});
+getMetaClient().catch(() => {}); // pre-warm on startup
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -54,7 +59,7 @@ function extractVideoId(url) {
   return m[1];
 }
 
-// ─── Search & Metadata (youtubei.js) ────────────────────────────────────────
+// ─── Search (youtubei.js — reliable, no player needed) ───────────────────────
 
 export async function searchYouTube(query) {
   const client = await getMetaClient();
@@ -93,62 +98,103 @@ export async function getYouTubeInfo(url) {
   };
 }
 
-// ─── Download via Cobalt API ─────────────────────────────────────────────────
+// ─── InnerTube ANDROID client (direct YouTube API) ───────────────────────────
 //
-// Cobalt (api.cobalt.tools) processes YouTube server-side — it handles
-// authentication, bot-detection, and URL signing on their end.
-// We just POST the URL and GET back a direct download stream.
+// YouTube's InnerTube API is what the official apps use internally.
+// The ANDROID client (clientName "3") returns plain unsigned HTTPS URLs
+// in streaming_data.adaptive_formats — no cipher, no auth, no PoToken.
+// This works from any IP (server, VPS, etc.) the same way it works on a phone.
 
-const COBALT_API = 'https://api.cobalt.tools/';
-const COBALT_HEADERS = {
-  'Accept': 'application/json',
-  'Content-Type': 'application/json',
+const INNERTUBE_URL = 'https://www.youtube.com/youtubei/v1/player';
+
+// These are the same values hard-coded inside the YouTube Android APK
+const ANDROID_CONTEXT = {
+  client: {
+    clientName: 'ANDROID',
+    clientVersion: '19.09.37',
+    androidSdkVersion: 30,
+    userAgent: 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
+    hl: 'en',
+    timeZone: 'UTC',
+    utcOffsetMinutes: 0,
+  },
 };
 
-async function cobaltDownload(videoUrl, mode = 'audio') {
-  // Step 1 — ask Cobalt for a download URL
-  const body = {
-    url: videoUrl,
-    downloadMode: mode,          // 'audio' or 'auto' (auto = best video+audio)
-    audioFormat: 'mp3',
-    audioBitrate: '128',
-    filenameStyle: 'basic',
-  };
-
-  const res = await axios.post(COBALT_API, body, {
-    headers: COBALT_HEADERS,
-    timeout: 15_000,
-  });
-
-  const { status, url } = res.data || {};
-
-  if (!url || !['tunnel', 'redirect', 'stream'].includes(status)) {
-    const reason = res.data?.error?.code || res.data?.text || 'Unknown cobalt error';
-    throw new Error(`Cobalt returned no download URL: ${reason}`);
-  }
-
-  // Step 2 — stream the audio/video into a buffer
-  const fileRes = await axios.get(url, {
-    responseType: 'arraybuffer',
-    timeout: 120_000,
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+async function fetchInnerTubePlayerData(videoId) {
+  const res = await axios.post(
+    INNERTUBE_URL,
+    { videoId, context: ANDROID_CONTEXT },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': ANDROID_CONTEXT.client.userAgent,
+        'X-YouTube-Client-Name': '3',
+        'X-YouTube-Client-Version': ANDROID_CONTEXT.client.clientVersion,
+        'Origin': 'https://www.youtube.com',
+        'Referer': `https://www.youtube.com/watch?v=${videoId}`,
+      },
+      timeout: 20_000,
     },
-    maxContentLength: 80 * 1024 * 1024, // 80 MB safety cap
-  });
+  );
 
-  return Buffer.from(fileRes.data);
+  const data = res.data;
+  const status = data?.playabilityStatus?.status;
+
+  if (status === 'LOGIN_REQUIRED') throw new Error('This video is age-restricted or private.');
+  if (status === 'ERROR' || status === 'UNPLAYABLE') {
+    throw new Error(data.playabilityStatus?.reason || 'Video is not available.');
+  }
+  if (!data.streamingData) throw new Error('YouTube returned no streaming data for this video.');
+
+  return data;
 }
 
+async function downloadFromFormat(format) {
+  if (!format.url) {
+    // Some formats have a signatureCipher instead of a plain url — ANDROID usually doesn't but just in case
+    throw new Error('Stream URL requires deciphering — video not downloadable this way.');
+  }
+
+  const res = await axios.get(format.url, {
+    responseType: 'arraybuffer',
+    timeout: 120_000,
+    maxContentLength: 80 * 1024 * 1024, // 80 MB safety cap
+    headers: {
+      'User-Agent': ANDROID_CONTEXT.client.userAgent,
+      'Referer': 'https://www.youtube.com/',
+    },
+  });
+
+  return Buffer.from(res.data);
+}
+
+// ─── Public download API ──────────────────────────────────────────────────────
+
 export async function downloadAudioBuffer(url) {
-  if (!isYouTubeUrl(url)) throw new Error('Not a valid YouTube URL.');
-  return cobaltDownload(url, 'audio');
+  const videoId = extractVideoId(url);
+  const data = await fetchInnerTubePlayerData(videoId);
+
+  const adaptiveFormats = data.streamingData.adaptiveFormats || [];
+
+  // Prefer AAC (audio/mp4) for maximum WhatsApp compatibility
+  const audioPriority = ['audio/mp4', 'audio/webm'];
+  let bestAudio = null;
+
+  for (const mimePrefix of audioPriority) {
+    const candidates = adaptiveFormats
+      .filter(f => f.mimeType?.startsWith(mimePrefix) && f.url)
+      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+    if (candidates.length > 0) { bestAudio = candidates[0]; break; }
+  }
+
+  if (!bestAudio) throw new Error('No downloadable audio stream found in this video.');
+  return downloadFromFormat(bestAudio);
 }
 
 export async function getBestVideoFormat(url) {
-  if (!isYouTubeUrl(url)) throw new Error('Not a valid YouTube URL.');
+  const videoId = extractVideoId(url);
 
-  // Fetch metadata separately (fast, no auth needed)
+  // Fetch metadata (title, duration, channel)
   let title = 'Unknown', duration = 'Unknown', channel = 'Unknown';
   try {
     const info = await getYouTubeInfo(url);
@@ -157,12 +203,38 @@ export async function getBestVideoFormat(url) {
     channel  = info.channel;
   } catch (_) {}
 
-  const buffer = await cobaltDownload(url, 'auto');
+  const data = await fetchInnerTubePlayerData(videoId);
+
+  // Combined formats (video+audio in one stream) — easiest for WhatsApp
+  const formats = data.streamingData.formats || [];
+  const combined = formats
+    .filter(f => f.mimeType?.startsWith('video/mp4') && f.url)
+    .sort((a, b) => {
+      // Prefer lower resolution to keep under 60 MB
+      const qa = parseInt(a.qualityLabel) || 9999;
+      const qb = parseInt(b.qualityLabel) || 9999;
+      return qa - qb;
+    });
+
+  if (combined.length === 0) throw new Error('No combined video+audio stream found. Try .ytmp3 instead.');
+
+  // Pick ≤360p if available, otherwise lowest available
+  const target = combined.find(f => parseInt(f.qualityLabel) <= 360) || combined[0];
+
+  const buffer = await downloadFromFormat(target);
   const sizeMB = (buffer.length / 1024 / 1024).toFixed(1);
 
   if (buffer.length > 60 * 1024 * 1024) {
-    throw new Error(`File too large (${sizeMB} MB). WhatsApp limit is ~60 MB.`);
+    throw new Error(`File too large (${sizeMB} MB). WhatsApp limit is ~60 MB. Try a shorter video.`);
   }
 
-  return { buffer, mimeType: 'video/mp4', quality: '360p', sizeMB, title, duration, channel };
+  return {
+    buffer,
+    mimeType: 'video/mp4',
+    quality: target.qualityLabel || '360p',
+    sizeMB,
+    title,
+    duration,
+    channel,
+  };
 }
