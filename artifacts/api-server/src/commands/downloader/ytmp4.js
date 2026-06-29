@@ -54,7 +54,7 @@ export default {
       }, { quoted: msg });
 
       await sock.sendMessage(jid, {
-        video: { url: format.url },
+        video: format.buffer,
         mimetype: 'video/mp4',
         caption: `🎬 *${truncate(info.title, 60)}*\n👤 ${info.channel} | ⏱ ${info.duration}`,
         fileName: `${truncate(info.title, 50)}.mp4`,

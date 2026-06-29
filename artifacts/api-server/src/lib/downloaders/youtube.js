@@ -97,17 +97,27 @@ export async function getBestVideoFormat(url) {
   const idMatch = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
   if (!idMatch) throw new Error('Could not extract video ID from URL.');
   const videoId = idMatch[1];
+
   const info = await client.getBasicInfo(videoId);
   const details = info.basic_info;
-  const stream = await client.download(videoId, { type: 'audio', quality: 'best', format: 'mp4' });
+
+  // Download video stream (combined video+audio at best available quality ≤360p)
+  const stream = await client.download(videoId, {
+    type: 'video+audio',
+    quality: '360p',
+    format: 'mp4',
+  });
   const buffer = await streamToBuffer(stream);
+
   const sizeMB = (buffer.length / 1024 / 1024).toFixed(1);
   if (buffer.length > 60 * 1024 * 1024) {
     throw new Error(`File too large (${sizeMB} MB). WhatsApp limit is ~60 MB.`);
   }
+
   return {
     buffer,
-    mimeType: 'audio/mp4',
+    mimeType: 'video/mp4',
+    quality: '360p',
     sizeMB,
     title: details.title || 'Unknown',
     duration: formatDuration(details.duration),

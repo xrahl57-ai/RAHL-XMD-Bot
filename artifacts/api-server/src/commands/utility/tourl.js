@@ -1,3 +1,4 @@
+import { downloadMediaMessage } from '@whiskeysockets/baileys';
 import axios from 'axios';
 import FormData from 'form-data';
 import { FOOTER } from '../../utils/helpers.js';
@@ -10,7 +11,8 @@ export default {
   cooldown: 10,
 
   async execute({ sock, msg, jid }) {
-    const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+    const ctx = msg.message?.extendedTextMessage?.contextInfo;
+    const quoted = ctx?.quotedMessage;
     const mediaMsg = msg.message?.imageMessage || msg.message?.videoMessage ||
       quoted?.imageMessage || quoted?.videoMessage;
 
@@ -21,9 +23,20 @@ export default {
     }
 
     try {
-      const buffer = await sock.downloadMediaMessage(
-        quoted ? { message: quoted, key: msg.key } : msg,
-      );
+      let buffer;
+      if (quoted?.imageMessage || quoted?.videoMessage) {
+        const fakeMsg = {
+          key: {
+            remoteJid: jid,
+            id: ctx.stanzaId || '',
+            participant: ctx.participant,
+          },
+          message: quoted,
+        };
+        buffer = await downloadMediaMessage(fakeMsg, 'buffer', {});
+      } else {
+        buffer = await downloadMediaMessage(msg, 'buffer', {});
+      }
 
       const form = new FormData();
       form.append('file', buffer, { filename: 'media.jpg', contentType: 'image/jpeg' });

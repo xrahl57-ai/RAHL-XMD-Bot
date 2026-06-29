@@ -1,8 +1,5 @@
+import { downloadMediaMessage } from '@whiskeysockets/baileys';
 import { FOOTER } from '../../utils/helpers.js';
-import { tmpdir } from 'os';
-import { join } from 'path';
-import { writeFileSync, unlinkSync } from 'fs';
-import { randomBytes } from 'crypto';
 
 export default {
   name: 'sticker',
@@ -12,7 +9,8 @@ export default {
   cooldown: 5,
 
   async execute({ sock, msg, jid }) {
-    const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+    const ctx = msg.message?.extendedTextMessage?.contextInfo;
+    const quoted = ctx?.quotedMessage;
     const mediaMsg = msg.message?.imageMessage ||
       msg.message?.videoMessage ||
       quoted?.imageMessage ||
@@ -25,13 +23,22 @@ export default {
     }
 
     try {
-      const buffer = await sock.downloadMediaMessage(
-        quoted ? { message: quoted, key: msg.key } : msg,
-      );
+      let buffer;
+      if (quoted?.imageMessage || quoted?.videoMessage) {
+        const fakeMsg = {
+          key: {
+            remoteJid: jid,
+            id: ctx.stanzaId || '',
+            participant: ctx.participant,
+          },
+          message: quoted,
+        };
+        buffer = await downloadMediaMessage(fakeMsg, 'buffer', {});
+      } else {
+        buffer = await downloadMediaMessage(msg, 'buffer', {});
+      }
 
-      await sock.sendMessage(jid, {
-        sticker: buffer,
-      }, { quoted: msg });
+      await sock.sendMessage(jid, { sticker: buffer }, { quoted: msg });
     } catch (err) {
       await sock.sendMessage(jid, {
         text: `❌ Failed to create sticker: ${err.message}\n\n${FOOTER}`,

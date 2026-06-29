@@ -1,3 +1,4 @@
+import { downloadMediaMessage } from '@whiskeysockets/baileys';
 import { FOOTER } from '../../utils/helpers.js';
 
 export default {
@@ -8,7 +9,8 @@ export default {
   cooldown: 5,
 
   async execute({ sock, msg, jid }) {
-    const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+    const ctx = msg.message?.extendedTextMessage?.contextInfo;
+    const quoted = ctx?.quotedMessage;
     const stickerMsg = quoted?.stickerMessage || msg.message?.stickerMessage;
 
     if (!stickerMsg) {
@@ -18,9 +20,21 @@ export default {
     }
 
     try {
-      const buffer = await sock.downloadMediaMessage(
-        quoted ? { message: quoted, key: msg.key } : msg,
-      );
+      let buffer;
+      if (quoted?.stickerMessage) {
+        const fakeMsg = {
+          key: {
+            remoteJid: jid,
+            id: ctx.stanzaId || '',
+            participant: ctx.participant,
+          },
+          message: quoted,
+        };
+        buffer = await downloadMediaMessage(fakeMsg, 'buffer', {});
+      } else {
+        buffer = await downloadMediaMessage(msg, 'buffer', {});
+      }
+
       await sock.sendMessage(jid, { image: buffer }, { quoted: msg });
     } catch (err) {
       await sock.sendMessage(jid, {

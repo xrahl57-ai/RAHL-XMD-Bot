@@ -5,7 +5,7 @@ import { FOOTER } from '../../utils/helpers.js';
 
 export default {
   name: 'imagine',
-  aliases: ['imagine', 'dalle', 'image'],
+  aliases: ['dalle', 'image'],
   description: 'Generate an AI image (requires OpenAI key)',
   category: 'ai',
   cooldown: 30,

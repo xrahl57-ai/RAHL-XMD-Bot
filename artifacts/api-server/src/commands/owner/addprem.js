@@ -11,16 +11,28 @@ export default {
   cooldown: 5,
 
   async execute({ sock, msg, jid, args, sender }) {
-    let target = msg.message?.extendedTextMessage?.contextInfo?.participant || args[0];
-    const days = parseInt(args[1] || args[0]) || 30;
+    const mentioned = msg.message?.extendedTextMessage?.contextInfo?.participant;
+    let target = mentioned || args[0];
+    const days = parseInt(mentioned ? args[0] : args[1]) || 30;
 
-    if (!target || isNaN(getJidNumber(target))) {
+    if (!target) {
       return sock.sendMessage(jid, {
         text: `❌ Usage: .addprem @user [days]\nExample: .addprem @user 30\n\n${FOOTER}`,
       }, { quoted: msg });
     }
 
-    const targetJid = target.includes('@') ? target : buildJid(target);
+    // Build a proper JID: if already a full JID (has @s.whatsapp.net) keep it,
+    // otherwise strip any leading @ and build from the number
+    const targetJid = target.includes('@s.whatsapp.net')
+      ? target
+      : buildJid(target.replace('@', ''));
+
+    if (!getJidNumber(targetJid)) {
+      return sock.sendMessage(jid, {
+        text: `❌ Usage: .addprem @user [days]\nExample: .addprem @user 30\n\n${FOOTER}`,
+      }, { quoted: msg });
+    }
+
     const expiresAt = moment().add(days, 'days').toDate();
 
     await PremiumUser.findOneAndUpdate(
