@@ -34,13 +34,14 @@ export default {
     } catch (_) {}
 
     const allCmds = getAllCommands();
-    const generalCmds  = [...allCmds.values()].filter(c => c.category === 'general').map(c => c.name);
-    const ownerCmds    = [...allCmds.values()].filter(c => c.category === 'owner').map(c => c.name);
-    const groupCmds    = [...allCmds.values()].filter(c => c.category === 'group').map(c => c.name);
-    const utilityCmds  = [...allCmds.values()].filter(c => c.category === 'utility').map(c => c.name);
-    const aiCmds       = [...allCmds.values()].filter(c => c.category === 'ai').map(c => c.name);
-    const premiumCmds  = [...allCmds.values()].filter(c => c.category === 'premium').map(c => c.name);
+    const generalCmds    = [...allCmds.values()].filter(c => c.category === 'general').map(c => c.name);
+    const ownerCmds      = [...allCmds.values()].filter(c => c.category === 'owner').map(c => c.name);
+    const groupCmds      = [...allCmds.values()].filter(c => c.category === 'group').map(c => c.name);
+    const utilityCmds    = [...allCmds.values()].filter(c => c.category === 'utility').map(c => c.name);
+    const aiCmds         = [...allCmds.values()].filter(c => c.category === 'ai').map(c => c.name);
+    const premiumCmds    = [...allCmds.values()].filter(c => c.category === 'premium').map(c => c.name);
     const downloaderCmds = [...allCmds.values()].filter(c => c.category === 'downloader').map(c => c.name);
+    const loveCmds       = [...allCmds.values()].filter(c => c.category === 'love').map(c => c.name);
 
     const menuText = `╔══════════════════════╗
 ║    👑 *RAHL XMD* 👑    ║
@@ -73,6 +74,9 @@ ${premiumCmds.map(c => `  ▸ ${PREFIX}${c}`).join('\n')}
 
 ⬇️ *Downloader Menu* [${downloaderCmds.length}]
 ${downloaderCmds.map(c => `  ▸ ${PREFIX}${c}`).join('\n')}
+
+💘 *Love Menu* [${loveCmds.length}]
+${loveCmds.map(c => `  ▸ ${PREFIX}${c}`).join('\n')}
 
 ════════════════════════
 ${FOOTER}`;
