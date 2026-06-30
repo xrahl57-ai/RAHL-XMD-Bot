@@ -230,13 +230,20 @@ export async function startWhatsApp() {
     });
   });
 
-  // Baileys also fires deletions as messages.update with protocolMessage type 0 (REVOKE)
+  // Baileys fires deletions as messages.update with protocolMessage type REVOKE (0).
+  // IMPORTANT: u.key is the key of the revoke notification itself — NOT the deleted message.
+  // The actual deleted message key lives inside protocolMessage.key.
   sock.ev.on('messages.update', async (updates) => {
-    const revokedKeys = updates
-      .filter((u) => u.update?.message?.protocolMessage?.type === 0)
-      .map((u) => u.key);
-    if (revokedKeys.length > 0) {
-      handleDeletedMessages(sock, { keys: revokedKeys }).catch((e) => {
+    const deletedKeys = [];
+    for (const u of updates) {
+      const proto = u.update?.message?.protocolMessage;
+      if (proto?.type === 0 && proto?.key) {
+        // proto.key = key of the message that was deleted
+        deletedKeys.push(proto.key);
+      }
+    }
+    if (deletedKeys.length > 0) {
+      handleDeletedMessages(sock, { keys: deletedKeys }).catch((e) => {
         logger.error('Anti-delete (update) error:', e.message);
       });
     }
