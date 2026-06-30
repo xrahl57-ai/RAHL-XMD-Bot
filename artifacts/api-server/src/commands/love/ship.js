@@ -8,17 +8,18 @@ function getCompatibility() {
   return { pct, bar };
 }
 
-const VERDICTS = [
-  (pct) => pct >= 90 ? '🔥 SOULMATES! This was written in the stars.' : '',
-  (pct) => pct >= 80 ? '💞 Very strong match! These two just *work*.' : '',
-  (pct) => pct >= 70 ? '💛 Good vibes! There's definitely something here.' : '',
-  (pct) => pct >= 60 ? '🌱 Potential is there. Give it time.' : '',
-].find(fn => fn !== undefined);
-
 const SHIP_NAMES = [
   (a, b) => a.slice(0, Math.ceil(a.length / 2)) + b.slice(Math.floor(b.length / 2)),
   (a, b) => b.slice(0, Math.ceil(b.length / 2)) + a.slice(Math.floor(a.length / 2)),
   (a, b) => a.slice(0, 2) + b.slice(-2),
+];
+
+const VERDICTS = [
+  (pct) => pct >= 95 ? '🔥🔥 SOULMATES — once-in-a-universe level connection!' :
+            pct >= 90 ? '🔥 SOULMATES — written in the stars, confirmed by math.' :
+            pct >= 80 ? '💞 Very strong match — these two just *work* together.' :
+            pct >= 70 ? '💛 Good vibes — there\'s definitely something real here.' :
+                        '🌱 Potential is there — give it some time and space.',
 ];
 
 const COMMENTS = [
@@ -26,10 +27,20 @@ const COMMENTS = [
   'RAHL XMD has done the math and the math is romantic.',
   'These numbers never lie. Trust the process.',
   'The compatibility engine ran 47 simulations. This is the result.',
-  'Science, feelings, and a little bit of chaos say so.',
+  'Science, feelings, and a little bit of chaos all agree.',
   'Based on vibes, energy, and absolutely nothing else.',
   'The universe whispered. RAHL XMD listened.',
   'Statistical anomaly? Or destiny? You decide.',
+  'The stars were consulted. They said: clearly.',
+  'RAHL XMD\'s love sensors detected this from across the server.',
+  'After deep analysis, fate, and one coin flip — results confirmed.',
+  'The data doesn\'t lie. But it does blush a little.',
+  'This took exactly 0.003 seconds to calculate and a lifetime to feel.',
+  'No bias. Pure numbers. Surprisingly romantic outcome.',
+  'The compatibility report has been filed with the universe.',
+  'Five AI models and one magic 8-ball all agreed on this.',
+  'Certified by RAHL XMD\'s Department of Love and Statistics.',
+  'Even the Wi-Fi router felt something when this result loaded.',
 ];
 
 export default {
@@ -40,7 +51,6 @@ export default {
   cooldown: 5,
 
   async execute({ sock, msg, jid, args, sender, pushName }) {
-    // .ship @user1 @user2  OR  .ship @user  (pairs them with sender)
     const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
 
     let person1Jid, person2Jid;
@@ -69,18 +79,14 @@ export default {
 
     const { pct, bar } = getCompatibility();
 
-    // Generate ship name from numbers (first few digits)
     const a = n1.slice(0, 4);
     const b = n2.slice(0, 4);
     const shipName = pick(SHIP_NAMES)(a, b).toUpperCase();
 
-    const verdict =
-      pct >= 90 ? '🔥 SOULMATES — written in the stars!' :
-      pct >= 80 ? '💞 Strong match — these two just *work*.' :
-      pct >= 70 ? '💛 Good vibes — there\'s definitely something here.' :
-                  '🌱 Potential is there — give it time.';
+    const verdict  = VERDICTS[0](pct);
+    const comment  = pick(COMMENTS);
 
-    const comment = pick(COMMENTS);
+    const hearts   = pct >= 90 ? '❤️‍🔥❤️‍🔥❤️‍🔥' : pct >= 80 ? '💞💞💞' : pct >= 70 ? '💛💛' : '🌱💚';
 
     const text =
       `╔══════════════════╗\n` +
@@ -90,7 +96,7 @@ export default {
       `👤 *Person 2:* ${name2}\n\n` +
       `💑 *Ship Name:* \`${shipName}\`\n\n` +
       `📊 *Compatibility:* ${pct}%\n` +
-      `[${bar}]\n\n` +
+      `[${bar}] ${hearts}\n\n` +
       `${verdict}\n\n` +
       `💬 _${comment}_\n\n` +
       `⚡ _RAHL XMD_`;
