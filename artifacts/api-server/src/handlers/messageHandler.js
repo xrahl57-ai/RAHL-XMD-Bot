@@ -50,10 +50,39 @@ async function incrementStats(field) {
   } catch (_) {}
 }
 
+// ── Replay / duplicate protection ────────────────────────────────────────────
+// Baileys re-fires old messages from session history on every reconnect.
+// This Set tracks message IDs we have already processed in this session.
+// TTL cleanup (5 min) prevents unbounded memory growth.
+const _seenIds = new Set();
+
+function markSeen(id) {
+  _seenIds.add(id);
+  setTimeout(() => _seenIds.delete(id), 5 * 60 * 1000);
+}
+
+// Max age for a message to be considered "live" and worth processing.
+// Anything older than this is a replay from history — ignore it.
+const MAX_MSG_AGE_MS = 30_000; // 30 seconds
+
 export async function handleMessage(sock, msg, commands) {
   try {
     const jid = msg.key.remoteJid;
     if (!jid) return;
+
+    // ── Duplicate guard ───────────────────────────────────────────────────────
+    const msgId = msg.key?.id;
+    if (msgId) {
+      if (_seenIds.has(msgId)) return; // already processed in this session
+      markSeen(msgId);
+    }
+
+    // ── Age gate — drop replayed / historical messages ────────────────────────
+    const ts = msg.messageTimestamp;
+    if (ts) {
+      const ageMs = Date.now() - Number(ts) * 1000;
+      if (ageMs > MAX_MSG_AGE_MS) return; // stale replay — skip silently
+    }
 
     const isGroupChat = isGroup(jid);
     const sender = isGroupChat
