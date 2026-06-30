@@ -1,5 +1,16 @@
 import axios from 'axios';
-import { FOOTER } from '../../utils/helpers.js';
+
+const weatherEmoji = (desc = '') => {
+  const d = desc.toLowerCase();
+  if (d.includes('sun') || d.includes('clear'))   return '☀️';
+  if (d.includes('cloud') || d.includes('overcast')) return '☁️';
+  if (d.includes('rain') || d.includes('drizzle')) return '🌧️';
+  if (d.includes('thunder') || d.includes('storm')) return '⛈️';
+  if (d.includes('snow') || d.includes('blizzard')) return '❄️';
+  if (d.includes('fog') || d.includes('mist'))    return '🌫️';
+  if (d.includes('wind'))                         return '💨';
+  return '🌤️';
+};
 
 export default {
   name: 'weather',
@@ -11,33 +22,48 @@ export default {
   async execute({ sock, msg, jid, fullArgs }) {
     if (!fullArgs) {
       return sock.sendMessage(jid, {
-        text: `❌ Usage: .weather <city>\nExample: .weather Nairobi\n\n${FOOTER}`,
+        text:
+          `❌ *Usage:* .weather <city>\n` +
+          `📍 *Example:* .weather Nairobi`,
       }, { quoted: msg });
     }
 
     try {
-      const geoRes = await axios.get(
-        `https://wttr.in/${encodeURIComponent(fullArgs)}?format=j1`,
-        { timeout: 8000 },
-      );
-
-      const data = geoRes.data;
-      const current = data.current_condition[0];
-      const area = data.nearest_area[0];
-      const city = area.areaName[0].value;
+      const res     = await axios.get(`https://wttr.in/${encodeURIComponent(fullArgs)}?format=j1`, { timeout: 10000 });
+      const data    = res.data;
+      const cur     = data.current_condition[0];
+      const area    = data.nearest_area[0];
+      const city    = area.areaName[0].value;
       const country = area.country[0].value;
-      const temp = current.temp_C;
-      const feelsLike = current.FeelsLikeC;
-      const humidity = current.humidity;
-      const desc = current.weatherDesc[0].value;
-      const wind = current.windspeedKmph;
+      const desc    = cur.weatherDesc[0].value;
+      const icon    = weatherEmoji(desc);
+      const temp    = cur.temp_C;
+      const feels   = cur.FeelsLikeC;
+      const humidity = cur.humidity;
+      const wind    = cur.windspeedKmph;
+      const vis     = cur.visibility;
+      const uv      = cur.uvIndex;
 
       await sock.sendMessage(jid, {
-        text: `🌤️ *Weather: ${city}, ${country}*\n\n🌡️ Temperature: ${temp}°C (Feels like ${feelsLike}°C)\n☁️ Condition: ${desc}\n💧 Humidity: ${humidity}%\n💨 Wind: ${wind} km/h\n\n${FOOTER}`,
+        text:
+          `╔══════════════════════╗\n` +
+          `║  ${icon}  *WEATHER REPORT*  ${icon}  ║\n` +
+          `╚══════════════════════╝\n\n` +
+          `📍 *Location* ➜ ${city}, ${country}\n` +
+          `🌤️ *Condition* ➜ ${desc}\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `🌡️ *Temperature* ➜ ${temp}°C\n` +
+          `🤔 *Feels Like* ➜ ${feels}°C\n` +
+          `💧 *Humidity* ➜ ${humidity}%\n` +
+          `💨 *Wind Speed* ➜ ${wind} km/h\n` +
+          `👁️ *Visibility* ➜ ${vis} km\n` +
+          `☀️ *UV Index* ➜ ${uv}\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `⚡ _RAHL XMD Weather_ 🌍`,
       }, { quoted: msg });
-    } catch (err) {
+    } catch {
       await sock.sendMessage(jid, {
-        text: `❌ Could not get weather. Try a different city name.\n\n${FOOTER}`,
+        text: `❌ *Could not fetch weather for:* _${fullArgs}_\n\n_Check the city name and try again._`,
       }, { quoted: msg });
     }
   },

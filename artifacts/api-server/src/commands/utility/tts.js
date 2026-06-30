@@ -53,11 +53,19 @@ export default {
       }, { quoted: msg });
 
       await sock.sendMessage(jid, {
-        text: `🔊 *TTS Generated*\n\n🎙️ *Voice:* ${voice}\n📝 *Text:* _${text}_\n\n⚡ _RAHL XMD_`,
+        text:
+          `╔══════════════════════╗\n` +
+          `║  🔊  *TEXT TO SPEECH*  ║\n` +
+          `╚══════════════════════╝\n\n` +
+          `✅ *Audio Generated!*\n\n` +
+          `🎙️ *Voice* ➜ ${voice}\n` +
+          `📝 *Text* ➜ _${text}_\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `⚡ _RAHL XMD TTS_ 🦅`,
       });
     } catch (err) {
       await sock.sendMessage(jid, {
-        text: `❌ TTS failed: ${err.message}`,
+        text: `❌ *TTS Failed*\n\n_${err.message}_`,
       }, { quoted: msg });
     }
   },

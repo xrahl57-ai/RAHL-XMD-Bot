@@ -1,4 +1,4 @@
-import { formatUptime, FOOTER } from '../../utils/helpers.js';
+import { formatUptime } from '../../utils/helpers.js';
 import { getBotInfo } from '../../services/whatsapp.js';
 
 export default {
@@ -9,11 +9,17 @@ export default {
   cooldown: 5,
 
   async execute({ sock, msg, jid }) {
-    const botInfo = getBotInfo();
-    const uptime = formatUptime(botInfo.startTime);
+    const uptime = formatUptime(getBotInfo().startTime);
 
     await sock.sendMessage(jid, {
-      text: `⚡ *Bot Runtime*\n\n🕐 Uptime: *${uptime}*\n\n${FOOTER}`,
+      text:
+        `╔══════════════════════╗\n` +
+        `║  ⏱️  *BOT RUNTIME*  ⏱️  ║\n` +
+        `╚══════════════════════╝\n\n` +
+        `🕐 *Running for* ➜ *${uptime}*\n\n` +
+        `_RAHL XMD has been serving non-stop!_ 💪\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `⚡ _Powered by RAHL XMD_ 🦅`,
     }, { quoted: msg });
   },
 };

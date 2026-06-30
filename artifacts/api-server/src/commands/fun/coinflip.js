@@ -35,11 +35,14 @@ export default {
 
     await sock.sendMessage(jid, {
       text:
-        `🪙 *Coin Flip*\n\n` +
-        `${outcome.emoji} *Result: ${outcome.result}!*\n` +
+        `╔══════════════════════╗\n` +
+        `║  🪙  *COIN FLIP*  🪙   ║\n` +
+        `╚══════════════════════╝\n\n` +
+        `${isHeads ? '👑' : '⬛'} *Result:* ${outcome.result}!\n` +
         `${outcome.side}\n\n` +
         `💬 _${comment}_\n\n` +
-        `⚡ _RAHL XMD_`,
+        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `🎰 _RAHL XMD Games_ ⚡`,
     }, { quoted: msg });
   },
 };

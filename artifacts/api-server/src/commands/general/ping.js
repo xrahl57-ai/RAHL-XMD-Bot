@@ -7,11 +7,21 @@ export default {
 
   async execute({ sock, msg, jid }) {
     const start = Date.now();
-    const sent = await sock.sendMessage(jid, { text: '🏓 Pinging...' }, { quoted: msg });
+    await sock.sendMessage(jid, { text: '🏓 _Pinging…_' }, { quoted: msg });
     const latency = Date.now() - start;
 
+    const bar   = latency < 200 ? '🟢' : latency < 500 ? '🟡' : '🔴';
+    const speed = latency < 200 ? 'Lightning Fast ⚡' : latency < 500 ? 'Good 👍' : 'Slow 🐢';
+
     await sock.sendMessage(jid, {
-      text: `🏓 *Pong!*\n\n⚡ *Response:* ${latency}ms\n\n👑 Powered By LORD RAHL`,
+      text:
+        `╔══════════════════════╗\n` +
+        `║   🏓  *PING TEST*  🏓  ║\n` +
+        `╚══════════════════════╝\n\n` +
+        `${bar} *Response Time* ➜ \`${latency}ms\`\n` +
+        `🚀 *Speed Rating* ➜ ${speed}\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `⚡ _RAHL XMD_ 🦅`,
     }, { quoted: msg });
   },
 };

@@ -46,21 +46,28 @@ export default {
         trimmed = true;
       }
 
-      const header = `🎵 *${title}*\n👤 *${artist}*\n${'─'.repeat(24)}\n\n`;
+      const header =
+        `╔══════════════════════╗\n` +
+        `║  🎵  *SONG LYRICS*  🎵  ║\n` +
+        `╚══════════════════════╝\n\n` +
+        `🎤 *Title* ➜ ${title}\n` +
+        `👤 *Artist* ➜ ${artist}\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
       const footer = trimmed
-        ? '\n\n_[Lyrics trimmed — song is too long]_\n\n⚡ _RAHL XMD_'
-        : '\n\n⚡ _RAHL XMD_';
+        ? `\n\n_[Lyrics trimmed — song is too long for one message]_\n\n━━━━━━━━━━━━━━━━━━━━━━━\n⚡ _RAHL XMD Lyrics_ 🎶`
+        : `\n\n━━━━━━━━━━━━━━━━━━━━━━━\n⚡ _RAHL XMD Lyrics_ 🎶`;
 
       await sock.sendMessage(jid, {
         text: header + lyricsText + footer,
       }, { quoted: msg });
     } catch (err) {
       const msg2 = err.response?.status === 404
-        ? `Lyrics not found for *${title}* by *${artist}*.\n_Check the spelling or try a different song._`
-        : `Failed to fetch lyrics: ${err.message}`;
+        ? `Lyrics not found for *${title}* by *${artist}*.\n\n_Check the spelling or try a different song._`
+        : `Failed to fetch lyrics: _${err.message}_`;
 
       await sock.sendMessage(jid, {
-        text: `❌ ${msg2}`,
+        text: `❌ *Lyrics Not Found*\n\n${msg2}`,
       }, { quoted: msg });
     }
   },

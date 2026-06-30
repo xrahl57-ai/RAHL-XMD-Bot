@@ -18,30 +18,35 @@ export default {
 
     try {
       if (action === 'reset' || action === 'revoke') {
-        // Revoke old link and generate a new one
         await sock.groupRevokeInvite(jid);
         const newCode = await sock.groupInviteCode(jid);
         await sock.sendMessage(jid, {
           text:
-            `🔄 *Group invite link reset!*\n\n` +
-            `🔗 *New link:* https://chat.whatsapp.com/${newCode}\n\n` +
-            `_Old link is now invalid._\n\n` +
-            `⚡ _RAHL XMD_`,
+            `╔══════════════════════╗\n` +
+            `║  🔄  *LINK RESET*  🔄   ║\n` +
+            `╚══════════════════════╝\n\n` +
+            `✅ *Invite link has been reset!*\n\n` +
+            `🔗 *New Link:*\nhttps://chat.whatsapp.com/${newCode}\n\n` +
+            `⚠️ _Old link is now invalid._\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+            `⚡ _RAHL XMD_ 🦅`,
         }, { quoted: msg });
       } else {
-        // Just fetch the current link
         const code = await sock.groupInviteCode(jid);
         await sock.sendMessage(jid, {
           text:
-            `🔗 *Group Invite Link*\n\n` +
-            `https://chat.whatsapp.com/${code}\n\n` +
-            `_Share this link to invite people.\nTo reset it: .grouplink reset_\n\n` +
-            `⚡ _RAHL XMD_`,
+            `╔══════════════════════╗\n` +
+            `║  🔗  *GROUP LINK*  🔗   ║\n` +
+            `╚══════════════════════╝\n\n` +
+            `✅ *Invite Link:*\nhttps://chat.whatsapp.com/${code}\n\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+            `💡 _To reset: .grouplink reset_\n` +
+            `⚡ _RAHL XMD_ 🦅`,
         }, { quoted: msg });
       }
     } catch (err) {
       await sock.sendMessage(jid, {
-        text: `❌ Failed to get invite link: ${err.message}`,
+        text: `❌ *Failed to get invite link*\n\n_${err.message}_`,
       }, { quoted: msg });
     }
   },

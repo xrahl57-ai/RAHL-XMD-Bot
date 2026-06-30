@@ -21,18 +21,24 @@ export default {
           : pushName || number;
 
     let text =
-      `📋 *User Info*\n\n` +
-      `👤 *Name:* ${isMe ? pushName || 'Unknown' : targetName}\n` +
-      `📱 *Number:* +${number}\n` +
-      `🆔 *JID:* \`${target}\`\n`;
+      `╔══════════════════════╗\n` +
+      `║  📋  *USER INFO*  📋   ║\n` +
+      `╚══════════════════════╝\n\n` +
+      `👤 *Name* ➜ ${isMe ? pushName || 'Unknown' : targetName}\n` +
+      `📱 *Number* ➜ +${number}\n` +
+      `🆔 *JID* ➜ \`${target}\`\n`;
 
     if (isGroup) {
-      text += `\n💬 *Chat:* Group\n🔑 *Group JID:* \`${jid}\``;
+      text +=
+        `\n💬 *Chat* ➜ Group\n` +
+        `🔑 *Group JID* ➜ \`${jid}\`\n`;
     } else {
-      text += `\n💬 *Chat:* Private`;
+      text += `\n💬 *Chat* ➜ Private\n`;
     }
 
-    text += `\n\n⚡ _RAHL XMD_`;
+    text +=
+      `\n━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `⚡ _RAHL XMD_ 🦅`;
 
     await sock.sendMessage(jid, {
       text,

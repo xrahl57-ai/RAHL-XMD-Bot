@@ -20,13 +20,17 @@ export default {
       await sock.groupUpdateDescription(jid, newDesc);
       await sock.sendMessage(jid, {
         text:
-          `✅ *Group description updated!*\n\n` +
-          `📝 *New description:*\n${newDesc || '_[Cleared]_'}\n\n` +
-          `⚡ _RAHL XMD_`,
+          `╔══════════════════════╗\n` +
+          `║  📝  *GROUP DESC*  📝   ║\n` +
+          `╚══════════════════════╝\n\n` +
+          `✅ *Description updated!*\n\n` +
+          `📄 *New Description:*\n${newDesc || '_[Cleared]_'}\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `⚡ _RAHL XMD_ 🦅`,
       }, { quoted: msg });
     } catch (err) {
       await sock.sendMessage(jid, {
-        text: `❌ Failed to update description: ${err.message}`,
+        text: `❌ *Failed to update description*\n\n_${err.message}_`,
       }, { quoted: msg });
     }
   },

@@ -51,7 +51,14 @@ export default {
     const targetTag = `@${getJidNumber(target)}`;
 
     await sock.sendMessage(jid, {
-      text: `🔥 *ROAST TIME* 🔥\n\n${pick(ROASTS)(targetTag)}\n\n_Roasted by RAHL XMD 😂_`,
+      text:
+        `╔══════════════════════╗\n` +
+        `║  🔥  *ROAST ALERT*  🔥  ║\n` +
+        `╚══════════════════════╝\n\n` +
+        `${pick(ROASTS)(targetTag)}\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `😂 _No hard feelings — it's just fun!_\n` +
+        `🎭 _RAHL XMD Roasters_ ⚡`,
       mentions: [target],
     }, { quoted: msg });
   },

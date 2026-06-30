@@ -44,7 +44,13 @@ export default {
 
   async execute({ sock, msg, jid }) {
     await sock.sendMessage(jid, {
-      text: `😂 *Random Joke*\n\n${pick(JOKES)}\n\n⚡ _RAHL XMD_`,
+      text:
+        `╔══════════════════════╗\n` +
+        `║   😂  *JOKE TIME*  😂   ║\n` +
+        `╚══════════════════════╝\n\n` +
+        `${pick(JOKES)}\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `🎭 _RAHL XMD Fun Zone_ ⚡`,
     }, { quoted: msg });
   },
 };

@@ -36,13 +36,24 @@ export default {
   async execute({ sock, msg, jid, fullArgs }) {
     if (!fullArgs) {
       return sock.sendMessage(jid, {
-        text: `🎱 Ask me a yes/no question!\n\n_Usage: .8ball Will I win today?_`,
+        text:
+          `🎱 *Magic 8-Ball*\n\n` +
+          `_Ask me any yes/no question!_\n\n` +
+          `📝 *Usage:* .8ball Will I win today?`,
       }, { quoted: msg });
     }
 
     const answer = pick(ANSWERS);
     await sock.sendMessage(jid, {
-      text: `🎱 *Magic 8-Ball*\n\n❓ *Question:* ${fullArgs}\n\n${answer.emoji} *Answer:* _${answer.text}_\n\n⚡ _RAHL XMD_`,
+      text:
+        `╔══════════════════════╗\n` +
+        `║  🎱  *MAGIC 8-BALL*  🎱  ║\n` +
+        `╚══════════════════════╝\n\n` +
+        `❓ *Question:*\n_${fullArgs}_\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `${answer.emoji} *The Ball Says:*\n*"${answer.text}"*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `🔮 _RAHL XMD Oracle_ ⚡`,
     }, { quoted: msg });
   },
 };

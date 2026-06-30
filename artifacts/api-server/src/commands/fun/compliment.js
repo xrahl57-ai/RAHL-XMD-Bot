@@ -51,7 +51,14 @@ export default {
     const targetTag = `@${getJidNumber(target)}`;
 
     await sock.sendMessage(jid, {
-      text: `💖 *Compliment*\n\n${pick(COMPLIMENTS)(targetTag)}\n\n⚡ _RAHL XMD_`,
+      text:
+        `╔══════════════════════╗\n` +
+        `║  💖  *COMPLIMENT*  💖  ║\n` +
+        `╚══════════════════════╝\n\n` +
+        `${pick(COMPLIMENTS)(targetTag)}\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `🌸 _Spread love, not hate!_\n` +
+        `💫 _RAHL XMD Vibes_ ⚡`,
       mentions: [target],
     }, { quoted: msg });
   },

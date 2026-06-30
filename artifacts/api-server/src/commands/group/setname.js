@@ -29,11 +29,18 @@ export default {
     try {
       await sock.groupUpdateSubject(jid, fullArgs);
       await sock.sendMessage(jid, {
-        text: `✅ *Group name updated!*\n\n📝 *New name:* ${fullArgs}\n\n⚡ _RAHL XMD_`,
+        text:
+          `╔══════════════════════╗\n` +
+          `║  ✏️  *GROUP RENAMED*  ✏️  ║\n` +
+          `╚══════════════════════╝\n\n` +
+          `✅ *Name updated successfully!*\n\n` +
+          `📝 *New Name* ➜ ${fullArgs}\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `⚡ _RAHL XMD_ 🦅`,
       }, { quoted: msg });
     } catch (err) {
       await sock.sendMessage(jid, {
-        text: `❌ Failed to update group name: ${err.message}`,
+        text: `❌ *Failed to rename group*\n\n_${err.message}_`,
       }, { quoted: msg });
     }
   },

@@ -45,7 +45,14 @@ export default {
   async execute({ sock, msg, jid }) {
     const q = pick(QUOTES);
     await sock.sendMessage(jid, {
-      text: `💬 *Quote of the Moment*\n\n"_${q.text}_"\n\n— *${q.author}*\n\n⚡ _RAHL XMD_`,
+      text:
+        `╔══════════════════════╗\n` +
+        `║  💬  *DAILY QUOTE*  💬  ║\n` +
+        `╚══════════════════════╝\n\n` +
+        `❝ _${q.text}_ ❞\n\n` +
+        `✍️ — *${q.author}*\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `✨ _RAHL XMD Inspires_ ⚡`,
     }, { quoted: msg });
   },
 };

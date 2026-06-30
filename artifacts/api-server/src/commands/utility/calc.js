@@ -35,14 +35,21 @@ export default {
 
       await sock.sendMessage(jid, {
         text:
-          `🧮 *Calculator*\n\n` +
-          `📝 *Expression:* \`${fullArgs}\`\n` +
-          `✅ *Result:* \`${formatted}\`\n\n` +
-          `⚡ _RAHL XMD_`,
+          `╔══════════════════════╗\n` +
+          `║  🧮  *CALCULATOR*  🧮  ║\n` +
+          `╚══════════════════════╝\n\n` +
+          `📝 *Expression:*\n\`${fullArgs}\`\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `✅ *Result:*\n\`${formatted}\`\n\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `⚡ _RAHL XMD Calculator_ 🦅`,
       }, { quoted: msg });
     } catch (err) {
       await sock.sendMessage(jid, {
-        text: `❌ *Invalid expression:* ${err.message}\n\n_Tip: Use +  −  *  /  ( )  %_`,
+        text:
+          `❌ *Invalid Expression*\n\n` +
+          `💥 _${err.message}_\n\n` +
+          `💡 *Tip:* Use  +  −  ×  ÷  ( )  %`,
       }, { quoted: msg });
     }
   },

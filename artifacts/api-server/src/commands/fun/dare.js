@@ -37,7 +37,14 @@ export default {
 
   async execute({ sock, msg, jid }) {
     await sock.sendMessage(jid, {
-      text: `😈 *DARE!*\n\n🎯 ${pick(DARES)}\n\n_Do it or choose truth with .truth_\n\n⚡ _RAHL XMD_`,
+      text:
+        `╔══════════════════════╗\n` +
+        `║   😈  *DARE TIME!*  😈  ║\n` +
+        `╚══════════════════════╝\n\n` +
+        `🎯 *Your dare is:*\n\n${pick(DARES)}\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `😤 _Do it or pick .truth instead!_\n` +
+        `🎮 _RAHL XMD Games_ ⚡`,
     }, { quoted: msg });
   },
 };

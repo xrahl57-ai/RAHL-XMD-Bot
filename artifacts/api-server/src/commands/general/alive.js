@@ -1,4 +1,4 @@
-import { formatUptime, BOT_NAME, OWNER_NAME, FOOTER } from '../../utils/helpers.js';
+import { formatUptime, BOT_NAME, OWNER_NAME } from '../../utils/helpers.js';
 import { getBotInfo } from '../../services/whatsapp.js';
 import { getConnectionStatus } from '../../database/mongodb.js';
 
@@ -10,28 +10,28 @@ export default {
   cooldown: 5,
 
   async execute({ sock, msg, jid }) {
-    const botInfo = getBotInfo();
-    const uptime = formatUptime(botInfo.startTime);
+    const botInfo  = getBotInfo();
+    const uptime   = formatUptime(botInfo.startTime);
     const dbStatus = getConnectionStatus();
+    const memMB    = (process.memoryUsage().rss / 1024 / 1024).toFixed(1);
 
-    const mem = process.memoryUsage();
-    const memMB = (mem.rss / 1024 / 1024).toFixed(1);
+    const wa = botInfo.connected  ? '🟢 Connected' : '🔴 Disconnected';
+    const db = dbStatus.connected ? '🟢 Connected' : '🔴 Disconnected';
 
-    const text = `╔══════════════════════╗
-║    👑 *RAHL XMD* 👑    ║
-╚══════════════════════╝
-
-✅ *Status:* Online & Active
-🤖 *Bot:* ${BOT_NAME}
-👑 *Owner:* ${OWNER_NAME}
-⚡ *Uptime:* ${uptime}
-🟢 *WhatsApp:* Connected
-💾 *Database:* ${dbStatus.connected ? 'Connected' : 'Disconnected'}
-🧠 *RAM Usage:* ${memMB} MB
-📦 *Version:* 1.0.0
-
-${FOOTER}`;
-
-    await sock.sendMessage(jid, { text }, { quoted: msg });
+    await sock.sendMessage(jid, {
+      text:
+        `╔══════════════════════╗\n` +
+        `║   🦅  *RAHL XMD*  🦅  ║\n` +
+        `╚══════════════════════╝\n\n` +
+        `✅ *Bot is Online & Active!*\n\n` +
+        `🤖 *Bot* ➜ ${BOT_NAME}\n` +
+        `👑 *Owner* ➜ ${OWNER_NAME}\n` +
+        `⏱️ *Uptime* ➜ ${uptime}\n` +
+        `📡 *WhatsApp* ➜ ${wa}\n` +
+        `🗄️ *Database* ➜ ${db}\n` +
+        `🧠 *RAM* ➜ ${memMB} MB\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `⚡ _Powered by RAHL XMD_ 🦅`,
+    }, { quoted: msg });
   },
 };
