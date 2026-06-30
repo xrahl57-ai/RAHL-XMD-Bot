@@ -42,6 +42,7 @@ export default {
     const premiumCmds    = [...allCmds.values()].filter(c => c.category === 'premium').map(c => c.name);
     const downloaderCmds = [...allCmds.values()].filter(c => c.category === 'downloader').map(c => c.name);
     const loveCmds       = [...allCmds.values()].filter(c => c.category === 'love').map(c => c.name);
+    const funCmds        = [...allCmds.values()].filter(c => c.category === 'fun').map(c => c.name);
 
     const menuText = `╔══════════════════════╗
 ║    👑 *RAHL XMD* 👑    ║
@@ -77,6 +78,9 @@ ${downloaderCmds.map(c => `  ▸ ${PREFIX}${c}`).join('\n')}
 
 💘 *Love Menu* [${loveCmds.length}]
 ${loveCmds.map(c => `  ▸ ${PREFIX}${c}`).join('\n')}
+
+🎉 *Fun Menu* [${funCmds.length}]
+${funCmds.map(c => `  ▸ ${PREFIX}${c}`).join('\n')}
 
 ════════════════════════
 ${FOOTER}`;
