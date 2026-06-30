@@ -52,11 +52,11 @@ export default {
 
     await sock.sendMessage(jid, {
       text:
-        `╔══════════════════════╗\n` +
-        `║  🔥  *ROAST ALERT*  🔥  ║\n` +
-        `╚══════════════════════╝\n\n` +
+        `👑══════════════════════👑\n` +
+        `    🔥  *ROAST ALERT*  🔥\n` +
+        `👑══════════════════════👑\n\n` +
         `${pick(ROASTS)(targetTag)}\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `✦══════════════════════✦\n` +
         `😂 _No hard feelings — it's just fun!_\n` +
         `🎭 _RAHL XMD Roasters_ ⚡`,
       mentions: [target],

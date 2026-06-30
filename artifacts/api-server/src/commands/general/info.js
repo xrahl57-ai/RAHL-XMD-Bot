@@ -21,23 +21,23 @@ export default {
 
     await sock.sendMessage(jid, {
       text:
-        `╔══════════════════════╗\n` +
-        `║  📊  *BOT INFORMATION*  ║\n` +
-        `╚══════════════════════╝\n\n` +
+        `👑══════════════════════👑\n` +
+        `   📊  *BOT INFORMATION*\n` +
+        `👑══════════════════════👑\n\n` +
         `🤖 *Name* ➜ ${config.botName}\n` +
         `👑 *Owner* ➜ ${config.ownerName}\n` +
         `📦 *Version* ➜ ${config.version}\n` +
         `🔑 *Prefix* ➜ \`${config.prefix}\`\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `✦══════════════════════✦\n\n` +
         `⏱️ *Uptime* ➜ ${uptime}\n` +
         `💾 *Heap* ➜ ${formatBytes(mem.heapUsed)}\n` +
         `🧠 *RAM* ➜ ${formatBytes(mem.rss)}\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `✦══════════════════════✦\n\n` +
         `📡 *WhatsApp* ➜ ${wa}\n` +
         `🗄️ *Database* ➜ ${db}\n` +
         `🖥️ *Platform* ➜ ${process.platform}\n` +
         `📦 *Node.js* ➜ ${process.version}\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `✦══════════════════════✦\n` +
         `⚡ _Powered by RAHL XMD_ 🦅`,
     }, { quoted: msg });
   },

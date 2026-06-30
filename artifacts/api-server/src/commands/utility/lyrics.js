@@ -47,16 +47,16 @@ export default {
       }
 
       const header =
-        `╔══════════════════════╗\n` +
-        `║  🎵  *SONG LYRICS*  🎵  ║\n` +
-        `╚══════════════════════╝\n\n` +
+        `👑══════════════════════👑\n` +
+        `    🎵  *SONG LYRICS*  🎵\n` +
+        `👑══════════════════════👑\n\n` +
         `🎤 *Title* ➜ ${title}\n` +
         `👤 *Artist* ➜ ${artist}\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+        `✦══════════════════════✦\n\n`;
 
       const footer = trimmed
-        ? `\n\n_[Lyrics trimmed — song is too long for one message]_\n\n━━━━━━━━━━━━━━━━━━━━━━━\n⚡ _RAHL XMD Lyrics_ 🎶`
-        : `\n\n━━━━━━━━━━━━━━━━━━━━━━━\n⚡ _RAHL XMD Lyrics_ 🎶`;
+        ? `\n\n_[Lyrics trimmed — song is too long for one message]_\n\n✦══════════════════════✦\n⚡ _RAHL XMD Lyrics_ 🎶`
+        : `\n\n✦══════════════════════✦\n⚡ _RAHL XMD Lyrics_ 🎶`;
 
       await sock.sendMessage(jid, {
         text: header + lyricsText + footer,

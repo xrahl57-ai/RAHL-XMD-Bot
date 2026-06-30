@@ -46,13 +46,13 @@ export default {
     const answer = pick(ANSWERS);
     await sock.sendMessage(jid, {
       text:
-        `╔══════════════════════╗\n` +
-        `║  🎱  *MAGIC 8-BALL*  🎱  ║\n` +
-        `╚══════════════════════╝\n\n` +
+        `👑══════════════════════👑\n` +
+        `   🎱  *MAGIC 8-BALL*  🎱\n` +
+        `👑══════════════════════👑\n\n` +
         `❓ *Question:*\n_${fullArgs}_\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `✦══════════════════════✦\n\n` +
         `${answer.emoji} *The Ball Says:*\n*"${answer.text}"*\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `✦══════════════════════✦\n` +
         `🔮 _RAHL XMD Oracle_ ⚡`,
     }, { quoted: msg });
   },

@@ -52,11 +52,11 @@ export default {
 
     await sock.sendMessage(jid, {
       text:
-        `╔══════════════════════╗\n` +
-        `║  💖  *COMPLIMENT*  💖  ║\n` +
-        `╚══════════════════════╝\n\n` +
+        `👑══════════════════════👑\n` +
+        `    💖  *COMPLIMENT*  💖\n` +
+        `👑══════════════════════👑\n\n` +
         `${pick(COMPLIMENTS)(targetTag)}\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `✦══════════════════════✦\n` +
         `🌸 _Spread love, not hate!_\n` +
         `💫 _RAHL XMD Vibes_ ⚡`,
       mentions: [target],

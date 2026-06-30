@@ -20,9 +20,9 @@ export default {
 
     await sock.sendMessage(jid, {
       text:
-        `╔══════════════════════╗\n` +
-        `║   🦅  *RAHL XMD*  🦅  ║\n` +
-        `╚══════════════════════╝\n\n` +
+        `👑══════════════════════👑\n` +
+        `    🦅  *RAHL XMD*  🦅\n` +
+        `👑══════════════════════👑\n\n` +
         `✅ *Bot is Online & Active!*\n\n` +
         `🤖 *Bot* ➜ ${BOT_NAME}\n` +
         `👑 *Owner* ➜ ${OWNER_NAME}\n` +
@@ -30,7 +30,7 @@ export default {
         `📡 *WhatsApp* ➜ ${wa}\n` +
         `🗄️ *Database* ➜ ${db}\n` +
         `🧠 *RAM* ➜ ${memMB} MB\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `✦══════════════════════✦\n` +
         `⚡ _Powered by RAHL XMD_ 🦅`,
     }, { quoted: msg });
   },

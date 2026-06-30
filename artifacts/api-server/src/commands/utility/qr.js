@@ -30,12 +30,12 @@ export default {
       await sock.sendMessage(jid, {
         image: qrBuffer,
         caption:
-          `╔══════════════════════╗\n` +
-          `║  📱  *QR CODE*  📱   ║\n` +
-          `╚══════════════════════╝\n\n` +
+          `👑══════════════════════👑\n` +
+          `    📱  *QR CODE*  📱\n` +
+          `👑══════════════════════👑\n\n` +
           `✅ *QR Generated Successfully!*\n\n` +
           `📝 *Content* ➜ \`${preview}\`\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `✦══════════════════════✦\n` +
           `⚡ _RAHL XMD_ 🦅`,
       }, { quoted: msg });
     } catch (err) {

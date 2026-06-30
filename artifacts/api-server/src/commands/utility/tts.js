@@ -54,13 +54,13 @@ export default {
 
       await sock.sendMessage(jid, {
         text:
-          `╔══════════════════════╗\n` +
-          `║  🔊  *TEXT TO SPEECH*  ║\n` +
-          `╚══════════════════════╝\n\n` +
+          `👑══════════════════════👑\n` +
+          `   🔊  *TEXT TO SPEECH*\n` +
+          `👑══════════════════════👑\n\n` +
           `✅ *Audio Generated!*\n\n` +
           `🎙️ *Voice* ➜ ${voice}\n` +
           `📝 *Text* ➜ _${text}_\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `✦══════════════════════✦\n` +
           `⚡ _RAHL XMD TTS_ 🦅`,
       });
     } catch (err) {

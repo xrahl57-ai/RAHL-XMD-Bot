@@ -21,9 +21,9 @@ export default {
           : pushName || number;
 
     let text =
-      `╔══════════════════════╗\n` +
-      `║  📋  *USER INFO*  📋   ║\n` +
-      `╚══════════════════════╝\n\n` +
+      `👑══════════════════════👑\n` +
+      `    📋  *USER INFO*  📋\n` +
+      `👑══════════════════════👑\n\n` +
       `👤 *Name* ➜ ${isMe ? pushName || 'Unknown' : targetName}\n` +
       `📱 *Number* ➜ +${number}\n` +
       `🆔 *JID* ➜ \`${target}\`\n`;
@@ -37,7 +37,7 @@ export default {
     }
 
     text +=
-      `\n━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `\n✦══════════════════════✦\n` +
       `⚡ _RAHL XMD_ 🦅`;
 
     await sock.sendMessage(jid, {

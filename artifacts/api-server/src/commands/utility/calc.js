@@ -35,13 +35,13 @@ export default {
 
       await sock.sendMessage(jid, {
         text:
-          `╔══════════════════════╗\n` +
-          `║  🧮  *CALCULATOR*  🧮  ║\n` +
-          `╚══════════════════════╝\n\n` +
+          `👑══════════════════════👑\n` +
+          `    🧮  *CALCULATOR*  🧮\n` +
+          `👑══════════════════════👑\n\n` +
           `📝 *Expression:*\n\`${fullArgs}\`\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `✦══════════════════════✦\n\n` +
           `✅ *Result:*\n\`${formatted}\`\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `✦══════════════════════✦\n` +
           `⚡ _RAHL XMD Calculator_ 🦅`,
       }, { quoted: msg });
     } catch (err) {

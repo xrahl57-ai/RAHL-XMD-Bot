@@ -30,13 +30,13 @@ export default {
 
     await sock.sendMessage(jid, {
       text:
-        `╔══════════════════════╗\n` +
-        `║  🎲  *DICE ROLL*  🎲   ║\n` +
-        `╚══════════════════════╝\n\n` +
+        `👑══════════════════════👑\n` +
+        `    🎲  *DICE ROLL*  🎲\n` +
+        `👑══════════════════════👑\n\n` +
         `🎯 *D${sides} Roll Result:*\n\n` +
         `${display}\n\n` +
         `💬 _${pick(COMMENTS)}_\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `✦══════════════════════✦\n` +
         `🎰 _RAHL XMD Games_ ⚡`,
     }, { quoted: msg });
   },

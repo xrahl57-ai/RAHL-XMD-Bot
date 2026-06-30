@@ -31,15 +31,15 @@ export default {
 
       await sock.sendMessage(jid, {
         text:
-          `╔══════════════════════╗\n` +
-          `║  🌐  *TRANSLATOR*  🌐  ║\n` +
-          `╚══════════════════════╝\n\n` +
+          `👑══════════════════════👑\n` +
+          `    🌐  *TRANSLATOR*  🌐\n` +
+          `👑══════════════════════👑\n\n` +
           `🔤 *From* ➜ \`${detected.toUpperCase()}\`\n` +
           `🎯 *To* ➜ \`${targetLang.toUpperCase()}\`\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `✦══════════════════════✦\n\n` +
           `📝 *Original:*\n_${text}_\n\n` +
           `✅ *Translated:*\n${translated}\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `✦══════════════════════✦\n` +
           `⚡ _RAHL XMD Translator_ 🌍`,
       }, { quoted: msg });
     } catch (err) {

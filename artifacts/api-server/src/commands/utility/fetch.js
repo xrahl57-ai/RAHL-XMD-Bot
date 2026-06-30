@@ -26,23 +26,23 @@ export default {
 
       await sock.sendMessage(jid, {
         text:
-          `╔══════════════════════╗\n` +
-          `║  🌐  *URL FETCH*  🌐  ║\n` +
-          `╚══════════════════════╝\n\n` +
+          `👑══════════════════════👑\n` +
+          `    🌐  *URL FETCH*  🌐\n` +
+          `👑══════════════════════👑\n\n` +
           `🔗 *URL* ➜ ${url}\n` +
           `⚡ *Status* ➜ ${res.status} OK\n` +
           `⏱️ *Time* ➜ ${ms}ms\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `✦══════════════════════✦\n\n` +
           `📄 *Response:*\n\`\`\`\n${content}\n\`\`\`\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `✦══════════════════════✦\n` +
           `⚡ _RAHL XMD_ 🦅`,
       }, { quoted: msg });
     } catch (err) {
       await sock.sendMessage(jid, {
         text:
-          `╔══════════════════════╗\n` +
-          `║  🌐  *URL FETCH*  🌐  ║\n` +
-          `╚══════════════════════╝\n\n` +
+          `👑══════════════════════👑\n` +
+          `    🌐  *URL FETCH*  🌐\n` +
+          `👑══════════════════════👑\n\n` +
           `❌ *Fetch Failed*\n\n` +
           `🔗 *URL* ➜ ${url}\n` +
           `💥 *Error* ➜ ${err.message}`,

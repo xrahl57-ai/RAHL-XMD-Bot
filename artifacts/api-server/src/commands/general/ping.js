@@ -15,12 +15,12 @@ export default {
 
     await sock.sendMessage(jid, {
       text:
-        `╔══════════════════════╗\n` +
-        `║   🏓  *PING TEST*  🏓  ║\n` +
-        `╚══════════════════════╝\n\n` +
+        `👑══════════════════════👑\n` +
+        `    🏓  *PING TEST*  🏓\n` +
+        `👑══════════════════════👑\n\n` +
         `${bar} *Response Time* ➜ \`${latency}ms\`\n` +
         `🚀 *Speed Rating* ➜ ${speed}\n\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `✦══════════════════════✦\n` +
         `⚡ _RAHL XMD_ 🦅`,
     }, { quoted: msg });
   },
